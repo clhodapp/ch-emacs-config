@@ -35,6 +35,19 @@
     homeManager.exported = modules: { inherit (modules) emacs; };
   };
 
+  # What an agent needs to talk to a live Emacs: two hook scripts and a
+  # skill describing the MCP server's tools. Exported as an interface so
+  # a consumer names these rather than a path into this tree, which
+  # would make the directory layout the contract and break silently when
+  # a file moves. This flake still knows nothing about any particular
+  # agent: it publishes what it has, and the wiring lives with whoever
+  # registers hooks.
+  flake.agentIntegration = {
+    cwdHookScript = ../../../modules/home-manager/emacs/lib/emacs-claude-cwd-hook.sh;
+    consentHookScript = ../../../modules/home-manager/emacs/lib/emacs-claude-consent-hook.sh;
+    toolsSkill = ../../../modules/home-manager/emacs/skills/emacs-tools;
+  };
+
   partitionedAttrs.checks = "checks";
   # packages are built from the same emacs-overlay nixpkgs as the checks
   # that validate them; no independent pin is possible without duplicating
