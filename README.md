@@ -1,0 +1,62 @@
+# ch-emacs-config
+
+A declarative Emacs configuration as a Home Manager module: the editor,
+its packages, its init, and a daemon that survives generation switches,
+all built from Nix.
+
+## What it provides
+
+**Bundles.** Features are grouped rather than listed one package at a
+time. Enabling the `eglot` bundle brings the language-server wiring, its
+init, and the packages behind it; the same for `jinx` spell checking,
+`consult-gh`, `render-dwim`, and the rest. A bundle is the unit you turn
+on.
+
+**A daemon with custody rules.** The systemd unit is keyed by a hash of
+the Emacs generation, so a rebuild starts the new daemon rather than
+leaving the old one serving stale code. A rotating daemon's exit must
+not delete the socket the new generation owns, which is asserted by a
+check rather than hoped for: the exit unlink happens through two paths,
+and an Emacs bump that renames either one fails the build.
+
+**Launchers that resolve at run time.** The desktop entry and `$EDITOR`
+point at scripts in the profile, and those scripts find the daemon and
+`emacsclient` when they run rather than when they were built. Desktop
+caches, taskbar pins, and long-lived shells all capture what they saw at
+index time and never notice a profile switch, so a launcher with baked
+paths eventually drives a daemon that no longer exists.
+
+**Language servers from a shared table.** The eglot configuration
+renders
+[ch-language-servers](https://github.com/clhodapp/ch-language-servers),
+the same table an agent's LSP plugin reads, so an editor and an agent on
+one project cannot disagree about how to spawn a server.
+
+## Use it
+
+```nix
+{
+  inputs.ch-emacs-config.url = "github:clhodapp/ch-emacs-config";
+
+  # in a Home Manager configuration:
+  #   ch-emacs-config.emacs.enable = true;
+}
+```
+
+The flake also exports the Emacs packages it validates against
+(`emacs`, `emacs-pgtk`, `emacs-nox`) and an overlay carrying them.
+
+## Development
+
+`nix flake check` builds both Emacs variants, boots each as a daemon and
+probes init health over `emacsclient`, batch-loads the full init the way
+real startup does, runs the ERT suites for the packages defined here,
+and evaluates the Home Manager module end to end. A plain-flake consumer
+without flake-parts is held as a check too, so the README's simplest
+recipe cannot rot.
+
+`nix fmt` formats.
+
+## License
+
+MIT, see [`LICENSE`](LICENSE).

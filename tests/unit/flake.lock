@@ -1,0 +1,43 @@
+{
+  "nodes": {
+    "caisson": {
+      "locked": {
+        "lastModified": 1788242478,
+        "narHash": "sha256-ue/yZgHDW2wbiEBxWgbd743242rx+73OpFk/dUt3suI=",
+        "owner": "nix-caisson",
+        "repo": "caisson",
+        "rev": "c1e3347080a20fefc17d368673af691cdea4a2ed",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-caisson",
+        "repo": "caisson",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1788039129,
+        "narHash": "sha256-pa4Q0qErvCvzCaaUph7Sm37RhR4xvPrYI8Lgz6k85+A=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "d2f67949798825fe853f7c5d0492b8bf016d3f88",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "caisson": "caisson",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
