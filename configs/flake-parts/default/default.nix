@@ -30,6 +30,12 @@
   };
 
   caisson.configInfo.configName = "ch-emacs-config";
+  # The language-server table: one description of how to spawn each
+  # server, shared with any other LSP client configured alongside this
+  # editor. Exported rather than reached for by path, so this repo's
+  # directory layout is not the contract.
+  flake.languageServerTable = import ../../../modules/home-manager/lib/language-servers.nix;
+
   caisson.modules = {
     flake.exported = modules: { inherit (modules) default emacs; };
     homeManager.exported = modules: { inherit (modules) emacs; };
