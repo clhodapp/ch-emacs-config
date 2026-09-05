@@ -1,22 +1,17 @@
 # SPDX-License-Identifier: MIT
+#
+# The local (in-tree) Emacs packages. `mkLocalBuild` is exported
+# alongside them so a layer built on this configuration can build its
+# own packages the same way, without reimplementing the builder.
 {
   epkgs,
   version,
 }:
 let
   mkLocalBuild = epkgs.callPackage ./builders/local { };
-  semantic-finder = epkgs.callPackage ./semantic-finder {
-    inherit mkLocalBuild version;
-  };
 in
 {
-  inherit mkLocalBuild semantic-finder;
-  ai-commit = epkgs.callPackage ./ai-commit {
-    inherit mkLocalBuild version;
-  };
-  claude-queue = epkgs.callPackage ./claude-queue {
-    inherit mkLocalBuild version semantic-finder;
-  };
+  inherit mkLocalBuild;
   evil-ghostel = epkgs.callPackage ./evil-ghostel {
     inherit mkLocalBuild version;
     ghostel = epkgs.ghostel;

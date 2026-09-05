@@ -26,7 +26,15 @@ let
       };
       epkgs = (pkgs.emacsPackagesFor emacsPackage).overrideScope emacsOverrides;
       version = emacsPackage.version or "0";
-      local = import ./packages/scope.nix { inherit epkgs version; };
+      # The in-tree package scope, extended by any layer built on this
+      # one so its bundles can name packages it defines. Fixed point, so
+      # an added package can depend on another added package.
+      local = lib.fix (
+        final:
+        lib.foldl' (prev: overlay: prev // overlay final prev) (import ./packages/scope.nix {
+          inherit epkgs version;
+        }) cfg.localPackageOverlays
+      );
       packages = import ./packages {
         inherit
           epkgs
@@ -56,7 +64,7 @@ let
 
   # Shared server table (argv, extensions, settings) — the emacs-side
   # facts (major-mode wiring, languageId pins) stay in the init below.
-  languageServers = closure-inputs.ch-language-servers.languageServerTable pkgs { inherit merman; };
+  languageServers = import ../lib/language-servers.nix pkgs { inherit merman; };
 
   # Render an argv as elisp string literals for an eglot-server-programs
   # contact list.
@@ -233,6 +241,21 @@ in
       type = lib.types.functionTo (lib.types.listOf lib.types.package);
       default = _localPackages: [ ];
       description = "Additional packages from the local package scope exported by this module.";
+    };
+
+    localPackageOverlays = lib.mkOption {
+      type = lib.types.listOf (lib.types.functionTo (lib.types.functionTo lib.types.attrs));
+      default = [ ];
+      example = lib.literalExpression ''
+        [ (final: prev: { my-package = final.mkLocalBuild { ... }; }) ]
+      '';
+      description = ''
+        Overlays extending the local package scope, so a layer built on
+        this configuration can add packages its own bundles reference by
+        name. Each is `final: prev:` over the scope, which carries
+        `mkLocalBuild` for building an in-tree package the same way this
+        module does.
+      '';
     };
 
     overrides = lib.mkOption {

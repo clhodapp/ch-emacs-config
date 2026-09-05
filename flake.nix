@@ -20,8 +20,6 @@
     emacs-overlay.inputs.nixpkgs.follows = "nixpkgs";
 
     # The shared server table behind the eglot configuration.
-    ch-language-servers.url = "github:clhodapp/ch-language-servers";
-
     # The mermaid renderer behind render-dwim and mermaid-preview.
     merman.url = "github:clhodapp/merman";
 
@@ -36,7 +34,6 @@
 
         projects = {
           inherit caisson;
-          ch-language-servers = inputs.ch-language-servers;
         };
 
         modules = lib: {

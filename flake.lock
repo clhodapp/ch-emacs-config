@@ -30,56 +30,6 @@
         "type": "github"
       }
     },
-    "caisson_3": {
-      "locked": {
-        "lastModified": 1788424022,
-        "narHash": "sha256-O5L156uTgGIjBlD9R4uTl4cGAfTa1SiWZRSZBneF7Lo=",
-        "owner": "nix-caisson",
-        "repo": "caisson",
-        "rev": "7eb1bd6270d2a38c6f7973dae3288841cbece3e4",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-caisson",
-        "repo": "caisson",
-        "type": "github"
-      }
-    },
-    "caisson_4": {
-      "locked": {
-        "lastModified": 1788424022,
-        "narHash": "sha256-O5L156uTgGIjBlD9R4uTl4cGAfTa1SiWZRSZBneF7Lo=",
-        "owner": "nix-caisson",
-        "repo": "caisson",
-        "rev": "7eb1bd6270d2a38c6f7973dae3288841cbece3e4",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-caisson",
-        "repo": "caisson",
-        "type": "github"
-      }
-    },
-    "ch-language-servers": {
-      "inputs": {
-        "caisson": "caisson_2",
-        "merman": "merman",
-        "nixpkgs": "nixpkgs_2"
-      },
-      "locked": {
-        "lastModified": 1788508079,
-        "narHash": "sha256-JRfXe+clBJdLhVO49ex1cHKI28aOdO3rnQC9U94v0sE=",
-        "owner": "clhodapp",
-        "repo": "ch-language-servers",
-        "rev": "fb9c4cf01bb2de65cc098b34d381628fb5e5aa2b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "clhodapp",
-        "repo": "ch-language-servers",
-        "type": "github"
-      }
-    },
     "collab-comments": {
       "flake": false,
       "locked": {
@@ -119,27 +69,8 @@
     },
     "merman": {
       "inputs": {
-        "caisson": "caisson_3",
+        "caisson": "caisson_2",
         "nixpkgs": "nixpkgs"
-      },
-      "locked": {
-        "lastModified": 1788502123,
-        "narHash": "sha256-SD/26tlZjcE3FFAJH1fCBXbyvhsPWE2WaORGYGWvKX4=",
-        "owner": "clhodapp",
-        "repo": "merman",
-        "rev": "843e76ba70b1896a9253486e03b946aaff01fc3a",
-        "type": "github"
-      },
-      "original": {
-        "owner": "clhodapp",
-        "repo": "merman",
-        "type": "github"
-      }
-    },
-    "merman_2": {
-      "inputs": {
-        "caisson": "caisson_4",
-        "nixpkgs": "nixpkgs_3"
       },
       "locked": {
         "lastModified": 1788502123,
@@ -203,38 +134,6 @@
         "type": "github"
       }
     },
-    "nixpkgs_3": {
-      "locked": {
-        "lastModified": 1788316716,
-        "narHash": "sha256-bc7rSpXIdn9QWGNqfWcPZWOhEVF8NoeAZkWq0XWnf/k=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "3ed67ec0a4d3c7ab4ae1f04f8ee8df07bfa506a2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "nixos-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "nixpkgs_4": {
-      "locked": {
-        "lastModified": 1788316716,
-        "narHash": "sha256-bc7rSpXIdn9QWGNqfWcPZWOhEVF8NoeAZkWq0XWnf/k=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "3ed67ec0a4d3c7ab4ae1f04f8ee8df07bfa506a2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "nixos-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
     "parenting": {
       "flake": false,
       "locked": {
@@ -270,11 +169,10 @@
     "root": {
       "inputs": {
         "caisson": "caisson",
-        "ch-language-servers": "ch-language-servers",
         "collab-comments": "collab-comments",
         "emacs-overlay": "emacs-overlay",
-        "merman": "merman_2",
-        "nixpkgs": "nixpkgs_4",
+        "merman": "merman",
+        "nixpkgs": "nixpkgs_2",
         "parenting": "parenting",
         "pr-review": "pr-review"
       }
