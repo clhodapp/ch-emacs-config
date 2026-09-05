@@ -54,8 +54,7 @@
   :custom
   (ghostel-eval-cmds '(("find-file" find-file)
                        ("message" message)
-                       ("ghostel-clear-scrollback" ghostel-clear-scrollback)
-                       ("ch/ghostel-send-buffer-env" ch/ghostel-send-buffer-env)))
+                       ("ghostel-clear-scrollback" ghostel-clear-scrollback)))
   ;; Don't freeze the terminal into copy mode on a mouse click/drag.
   ;; The default (`copy') means an inadvertent drag silently drops the
   ;; live buffer into read-only copy mode: up/down then move point in

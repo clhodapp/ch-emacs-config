@@ -15,7 +15,7 @@ in
   inherit pkgs;
   inherit (scope)
     mkLocalBuild
-    evil-ghostel
+    ch-evil-ghostel
     ghostel-funcs
     window-funcs
     ;

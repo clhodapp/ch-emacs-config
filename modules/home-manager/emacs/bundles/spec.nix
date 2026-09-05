@@ -28,38 +28,12 @@ in
     packages = _epkgs: _: [ ];
   };
 
-  acp = {
-    enable = true;
-    init = readInit "acp.el";
-    packages = epkgs: _: [ epkgs.acp ];
-  };
-
-  ai-commit = {
-    enable = true;
-    init = readInit "ai-commit.el";
-    packages = _epkgs: local: [ local.ai-commit ];
-  };
-
-  claude-queue = {
-    enable = true;
-    init = readInit "claude-queue.el";
-    packages = _epkgs: local: [ local.claude-queue ];
-  };
-
   embark = {
     enable = true;
     init = readInit "embark.el";
     packages = epkgs: _: [
       epkgs.embark
       epkgs.embark-consult
-    ];
-  };
-
-  agent-shell = {
-    enable = true;
-    init = readInit "agent-shell.el";
-    packages = epkgs: _: [
-      epkgs.agent-shell
     ];
   };
 
@@ -70,12 +44,6 @@ in
       epkgs.corfu
       epkgs.cape
     ];
-  };
-
-  collab-comments = {
-    enable = true;
-    init = readInit "collab-comments.el";
-    packages = epkgs: _local: [ epkgs.collab-comments ];
   };
 
   consult-gh = {
@@ -226,18 +194,6 @@ in
     packages = _epkgs: _: [ ];
   };
 
-  gptel = {
-    enable = true;
-    init = readInit "gptel.el";
-    packages = epkgs: _: [ epkgs.gptel ];
-  };
-
-  gptel-agent = {
-    enable = true;
-    init = readInit "gptel-agent.el";
-    packages = epkgs: _: [ epkgs.gptel-agent ];
-  };
-
   magit = {
     enable = true;
     init = readInit "magit.el";
@@ -271,32 +227,19 @@ in
     packages = _epkgs: local: [ local.render-dwim ];
   };
 
-  mcp-server = {
-    enable = true;
-    init = readInit "mcp-server.el";
-    packages = epkgs: _: [ epkgs.mcp-server-lib ];
-  };
-
   ghostel = {
     enable = true;
     init = readInit "ghostel.el";
+    # evil-ghostel is listed alongside the core even though
+    # ch-evil-ghostel already pulls it in, so the package manifest
+    # records the version it was built at: it comes from ghostel's own
+    # source tree via an overlay, not from emacs-overlay's package set.
     packages = epkgs: local: [
       epkgs.ghostel
-      local.evil-ghostel
+      epkgs.evil-ghostel
+      local.ch-evil-ghostel
       local.ghostel-funcs
     ];
-  };
-
-  parenting = {
-    enable = true;
-    init = readInit "parenting.el";
-    packages = epkgs: _local: [ epkgs.parenting ];
-  };
-
-  semantic-finder = {
-    enable = true;
-    init = readInit "semantic-finder.el";
-    packages = _epkgs: local: [ local.semantic-finder ];
   };
 
   speedbar = {

@@ -147,8 +147,6 @@ prefix bindings may arrive in any order across init bundles."
   (evil-global-set-key 'motion (kbd "<leader> b D") #'kill-buffer-and-window)
   (evil-global-set-key 'motion (kbd "<leader> b b") #'consult-buffer)
   (evil-global-set-key 'motion (kbd "<leader> b d") #'kill-current-buffer)
-  ;; Retrieval by description (embedding-ranked; b / is the literal layer).
-  (evil-global-set-key 'motion (kbd "<leader> b f") #'find-buffer-by-description)
   (evil-global-set-key 'motion (kbd "<leader> b m") #'buffer-menu)
   (evil-global-set-key 'motion (kbd "<leader> b n") #'next-buffer)
   (evil-global-set-key 'motion (kbd "<leader> b p") #'previous-buffer)
@@ -160,8 +158,6 @@ prefix bindings may arrive in any order across init bundles."
   (evil-global-set-key 'motion (kbd "<leader> f F") #'find-file)
   (evil-global-set-key 'motion (kbd "<leader> f r") #'consult-recent-file)
   (evil-global-set-key 'motion (kbd "<leader> f s") #'save-buffer)
-  ;; ? = find by description, the semantic sibling of the / literal layer.
-  (evil-global-set-key 'motion (kbd "<leader> F ?") #'find-frame-by-description)
   (evil-global-set-key 'motion (kbd "<leader> F D") #'delete-other-frames)
   (evil-global-set-key 'motion (kbd "<leader> F F") #'other-frame)
   (evil-global-set-key 'motion (kbd "<leader> F d") #'delete-frame)
@@ -200,8 +196,6 @@ prefix bindings may arrive in any order across init bundles."
   (evil-global-set-key 'motion (kbd "<leader> w J") #'evil-window-move-very-bottom)
   (evil-global-set-key 'motion (kbd "<leader> w K") #'evil-window-move-very-top)
   (evil-global-set-key 'motion (kbd "<leader> w L") #'evil-window-move-far-right)
-  ;; ? = find by description, the semantic sibling of the / literal layer.
-  (evil-global-set-key 'motion (kbd "<leader> w ?") #'find-window-by-description)
   (evil-global-set-key 'motion (kbd "<leader> w TAB") #'alternate-window)
   (evil-global-set-key 'motion (kbd "<leader> w b") #'switch-to-minibuffer-window)
   (evil-global-set-key 'motion (kbd "<leader> w d") #'delete-window)
