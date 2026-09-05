@@ -188,10 +188,6 @@
                 [[ -e "$sockdir/server" ]]
                 touch $out
               '';
-            # Bare-name mmdc for the ERT run, so the present tool's
-            # mermaid tests exercise the renderer instead of skipping
-            # (the init's default command is ("mmdc")).
-            mermanMmdcShim = pkgs.writeShellScriptBin "mmdc" ''exec ${lib.getExe merman} mmdc "$@"'';
             # Evaluate the home-manager module end to end: option types, the
             # programs.emacs wiring, bundle-conditional home.packages, and
             # the mcp stdio bridge all get forced by the activation package.
