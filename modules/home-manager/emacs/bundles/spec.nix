@@ -230,9 +230,14 @@ in
   ghostel = {
     enable = true;
     init = readInit "ghostel.el";
+    # evil-ghostel is listed alongside the core even though
+    # ch-evil-ghostel already pulls it in, so the package manifest
+    # records the version it was built at: it comes from ghostel's own
+    # source tree via an overlay, not from emacs-overlay's package set.
     packages = epkgs: local: [
       epkgs.ghostel
-      local.evil-ghostel
+      epkgs.evil-ghostel
+      local.ch-evil-ghostel
       local.ghostel-funcs
     ];
   };

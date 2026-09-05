@@ -257,6 +257,19 @@
                     -f ert-run-tests-batch-and-exit
                   touch $out
                 '';
+                # The four behaviors ch-evil-ghostel layers on upstream
+                # evil-ghostel, checked at the boundary that matters: which
+                # ghostel function each one calls, and with what arguments.
+                # Real ghostel and evil-ghostel are loaded, so an upstream
+                # rename or arity change fails here instead of at runtime.
+                ch-evil-ghostel-ert = pkgs.runCommand "ch-evil-ghostel-ert" { } ''
+                  export HOME="$TMPDIR"
+                  ${emacsScope.emacs}/bin/emacs --batch \
+                    -f package-activate-all \
+                    -l ${emacsTestsSrc}/ch-evil-ghostel-ert.el \
+                    -f ert-run-tests-batch-and-exit
+                  touch $out
+                '';
                 # render-dwim's extraction and normalization, plus the
                 # render and detect paths end to end (merman on PATH).
                 render-dwim-ert =
