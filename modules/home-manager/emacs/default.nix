@@ -105,30 +105,7 @@ let
 
   renderDwimBundleEnabled = bundles.render-dwim.enable or false;
 
-  mcpServerBundleEnabled = bundles.mcp-server.enable or false;
 
-  # Stable-path launcher for the stdio<->emacsclient bridge that ships
-  # inside the mcp-server-lib elpa package. MCP clients register this
-  # command (e.g. `claude mcp add -s user emacs -- emacs-mcp-stdio`) and
-  # keep working across package updates. Defaults target the "emacs"
-  # server registered by the mcp-server bundle; explicit flags win
-  # because the bridge's argument parser is last-match.
-  mcpStdioBridge = pkgs.writeShellApplication {
-    name = "emacs-mcp-stdio";
-    runtimeInputs = [
-      config.programs.emacs.finalPackage
-      pkgs.coreutils
-    ];
-    text = ''
-      bridge=(${localPackageScope.epkgs.mcp-server-lib}/share/emacs/site-lisp/elpa/mcp-server-lib-*/emacs-mcp-stdio.sh)
-      exec bash "''${bridge[0]}" \
-        --init-function=ch-emacs-config-mcp-server-start \
-        --server-id=emacs \
-        "$@"
-    '';
-  };
-
-  claudeQueueBundleEnabled = bundles.claude-queue.enable or false;
 
   consultGhBundleEnabled = bundles.consult-gh.enable or false;
 
@@ -243,6 +220,18 @@ in
       description = "Additional packages from the local package scope exported by this module.";
     };
 
+    build.packageScope = lib.mkOption {
+      type = lib.types.raw;
+      readOnly = true;
+      description = ''
+        The resolved package scope: the local in-tree packages, plus
+        `epkgs` (the Emacs package set with this configuration's
+        overrides applied) and `mkLocalBuild`. A layer built on this one
+        reads it to reach a package by the same name this configuration
+        would.
+      '';
+    };
+
     localPackageOverlays = lib.mkOption {
       type = lib.types.listOf (lib.types.functionTo (lib.types.functionTo lib.types.attrs));
       default = [ ];
@@ -302,7 +291,13 @@ in
     ./bundles/default.nix
   ];
 
-  config = lib.mkIf cfg.enable (
+  config = lib.mkMerge [
+    # Outside the enable guard: a layer above reads this to build its own
+    # packages against the same Emacs, and asking it to enable the module
+    # first would be an ordering trap.
+    { ch-emacs-config.emacs.build.packageScope = localPackageScope; }
+
+    (lib.mkIf cfg.enable (
     lib.mkMerge [
       {
         programs.emacs.overrides = lib.mkDefault (
@@ -325,16 +320,6 @@ in
           extraPackages = lib.mkDefault mergedExtraPackages;
         };
       }
-      (lib.mkIf mcpServerBundleEnabled ({
-        home.packages = [ mcpStdioBridge ];
-
-        # Nix-baked headless renderer for the present tool's mermaid
-        # mode; without it the init's bare-name default needs an mmdc
-        # on PATH, which nothing installs.
-        ch-emacs-config.emacs.extraInitContent = lib.mkAfter ''
-          (setq ch-emacs-config-mcp-mermaid-command (list "${lib.getExe merman}" "mmdc"))
-        '';
-      }))
       (lib.mkIf consultGhBundleEnabled {
         # Emacs resolves gh through the packages-deps profile (nixpkgs
         # consult-gh propagates it); this profile copy serves shells
@@ -557,5 +542,6 @@ in
         '';
       })
     ]
-  );
+    ))
+  ];
 }
