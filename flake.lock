@@ -30,22 +30,6 @@
         "type": "github"
       }
     },
-    "collab-comments": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1788080696,
-        "narHash": "sha256-IvvXeeoW4Dyp7UcE+dI1LXh4Y2yopNKMWRZdfYLM6pY=",
-        "owner": "clhodapp",
-        "repo": "collab-comments",
-        "rev": "d00aee9412bb7729720165e6cf35f1ddba2fef24",
-        "type": "github"
-      },
-      "original": {
-        "owner": "clhodapp",
-        "repo": "collab-comments",
-        "type": "github"
-      }
-    },
     "emacs-overlay": {
       "inputs": {
         "nixpkgs": [
@@ -134,22 +118,6 @@
         "type": "github"
       }
     },
-    "parenting": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1788120189,
-        "narHash": "sha256-cghgJTnwRh/Fi5gMVH0LS6LtEXxi0SDoJO7bW00Iha0=",
-        "owner": "clhodapp",
-        "repo": "parenting",
-        "rev": "1649ccf40f89a0432641dab2ed039e4adb7502f1",
-        "type": "github"
-      },
-      "original": {
-        "owner": "clhodapp",
-        "repo": "parenting",
-        "type": "github"
-      }
-    },
     "pr-review": {
       "flake": false,
       "locked": {
@@ -169,11 +137,9 @@
     "root": {
       "inputs": {
         "caisson": "caisson",
-        "collab-comments": "collab-comments",
         "emacs-overlay": "emacs-overlay",
         "merman": "merman",
         "nixpkgs": "nixpkgs_2",
-        "parenting": "parenting",
         "pr-review": "pr-review"
       }
     }

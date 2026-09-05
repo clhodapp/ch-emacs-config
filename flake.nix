@@ -8,10 +8,6 @@
 
     # Plain Emacs package repositories (no flake); pkgs/emacs/overrides.nix
     # builds them into the Emacs package set.
-    collab-comments.url = "github:clhodapp/collab-comments";
-    collab-comments.flake = false;
-    parenting.url = "github:clhodapp/parenting";
-    parenting.flake = false;
     pr-review.url = "github:clhodapp/emacs-pr-review";
     pr-review.flake = false;
 

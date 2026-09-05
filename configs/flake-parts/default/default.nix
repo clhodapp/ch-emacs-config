@@ -99,7 +99,7 @@
             emacsBundleSpec = import ../../../modules/home-manager/emacs/bundles/spec.nix;
             # Packages consumed as plain (non-flake) inputs; see pkgs/emacs/overrides.nix.
             emacsPackageSources = {
-              inherit (inputs) collab-comments parenting pr-review;
+              inherit (inputs) pr-review;
             };
             mkEmacsDefault =
               emacsPackage:

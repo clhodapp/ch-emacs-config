@@ -11,20 +11,28 @@ let
   cfg = config.ch-emacs-config.emacs;
   # Packages consumed as plain (non-flake) inputs; see pkgs/emacs/overrides.nix.
   emacsPackageSources = {
-    inherit (closure-inputs) collab-comments parenting pr-review;
+    inherit (closure-inputs) pr-review;
   };
   bundleLib = import ./lib/bundles.nix { inherit lib; };
   resolveBundles = import ./lib/resolve-bundles.nix { inherit lib; };
   bundles = resolveBundles cfg.bundles;
 
+  # This module's own overrides, then whatever a consumer set, then
+  # whatever a layer above contributed. The package scope below and
+  # `programs.emacs.overrides` must be built from the same chain, or a
+  # package added by a layer compiles against a different Emacs package
+  # set than it loads into.
+  composedOverrides = lib.foldl' lib.composeExtensions (lib.composeExtensions cfg.overrides (
+    import ../../../pkgs/emacs/overrides.nix {
+      inherit lib pkgs;
+      sources = emacsPackageSources;
+    }
+  )) cfg.extraOverrides;
+
   localPackageScope =
     let
       emacsPackage = cfg.package;
-      emacsOverrides = import ../../../pkgs/emacs/overrides.nix {
-        inherit lib pkgs;
-        sources = emacsPackageSources;
-      };
-      epkgs = (pkgs.emacsPackagesFor emacsPackage).overrideScope emacsOverrides;
+      epkgs = (pkgs.emacsPackagesFor emacsPackage).overrideScope composedOverrides;
       version = emacsPackage.version or "0";
       # The in-tree package scope, extended by any layer built on this
       # one so its bundles can name packages it defines. Fixed point, so
@@ -253,6 +261,17 @@ in
       '';
     };
 
+    extraOverrides = lib.mkOption {
+      type = lib.types.listOf (lib.types.functionTo (lib.types.functionTo lib.types.attrs));
+      default = [ ];
+      description = ''
+        Further package-set overrides, composed after `overrides` and
+        this module's own. A list rather than a function so several
+        modules can each contribute: a layer built on this one adds the
+        packages its bundles need without displacing what a consumer set.
+      '';
+    };
+
     extraInitContent = lib.mkOption {
       type = lib.types.lines;
       default = "";
@@ -298,14 +317,7 @@ in
     (lib.mkIf cfg.enable (
       lib.mkMerge [
         {
-          programs.emacs.overrides = lib.mkDefault (
-            lib.composeExtensions cfg.overrides (
-              import ../../../pkgs/emacs/overrides.nix {
-                inherit lib pkgs;
-                sources = emacsPackageSources;
-              }
-            )
-          );
+          programs.emacs.overrides = lib.mkDefault composedOverrides;
 
           home.file = {
             ".emacs.d/early-init.el".text = earlyInitEl;

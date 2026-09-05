@@ -9,8 +9,6 @@
   ...
 }:
 self: super: {
-  collab-comments = self.callPackage ./collab-comments/package.nix { src = sources.collab-comments; };
-  parenting = self.callPackage ./parenting/package.nix { src = sources.parenting; };
   pr-review = self.callPackage ./pr-review/package.nix { src = sources.pr-review; };
 
   # The local recipe is a floor, not a ceiling: it exists so package sets that
