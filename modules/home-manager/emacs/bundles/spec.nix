@@ -28,9 +28,6 @@ in
     packages = _epkgs: _: [ ];
   };
 
-
-
-
   embark = {
     enable = true;
     init = readInit "embark.el";
@@ -40,7 +37,6 @@ in
     ];
   };
 
-
   corfu = {
     enable = true;
     init = readInit "corfu.el";
@@ -49,7 +45,6 @@ in
       epkgs.cape
     ];
   };
-
 
   consult-gh = {
     enable = true;
@@ -199,8 +194,6 @@ in
     packages = _epkgs: _: [ ];
   };
 
-
-
   magit = {
     enable = true;
     init = readInit "magit.el";
@@ -234,7 +227,6 @@ in
     packages = _epkgs: local: [ local.render-dwim ];
   };
 
-
   ghostel = {
     enable = true;
     init = readInit "ghostel.el";
@@ -244,8 +236,6 @@ in
       local.ghostel-funcs
     ];
   };
-
-
 
   speedbar = {
     enable = true;

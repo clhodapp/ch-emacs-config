@@ -105,8 +105,6 @@ let
 
   renderDwimBundleEnabled = bundles.render-dwim.enable or false;
 
-
-
   consultGhBundleEnabled = bundles.consult-gh.enable or false;
 
   earlyInitEl = builtins.readFile ./emacs-init-dir/early-init.el;
@@ -298,250 +296,250 @@ in
     { ch-emacs-config.emacs.build.packageScope = localPackageScope; }
 
     (lib.mkIf cfg.enable (
-    lib.mkMerge [
-      {
-        programs.emacs.overrides = lib.mkDefault (
-          lib.composeExtensions cfg.overrides (
-            import ../../../pkgs/emacs/overrides.nix {
-              inherit lib pkgs;
-              sources = emacsPackageSources;
-            }
-          )
-        );
+      lib.mkMerge [
+        {
+          programs.emacs.overrides = lib.mkDefault (
+            lib.composeExtensions cfg.overrides (
+              import ../../../pkgs/emacs/overrides.nix {
+                inherit lib pkgs;
+                sources = emacsPackageSources;
+              }
+            )
+          );
 
-        home.file = {
-          ".emacs.d/early-init.el".text = earlyInitEl;
-          ".config/emacs/early-init.el".text = earlyInitEl;
-        };
+          home.file = {
+            ".emacs.d/early-init.el".text = earlyInitEl;
+            ".config/emacs/early-init.el".text = earlyInitEl;
+          };
 
-        programs.emacs = {
-          enable = lib.mkDefault true;
-          package = lib.mkDefault cfg.package;
-          extraPackages = lib.mkDefault mergedExtraPackages;
-        };
-      }
-      (lib.mkIf consultGhBundleEnabled {
-        # Emacs resolves gh through the packages-deps profile (nixpkgs
-        # consult-gh propagates it); this profile copy serves shells
-        # and other gh consumers outside the workspace devshell.
-        home.packages = [ pkgs.gh ];
-      })
-      (lib.mkIf jinxBundleEnabled {
-        # Enchant scans its per-user config dir for hunspell dictionaries,
-        # independent of session env (XDG_DATA_DIRS is cached by GLib before
-        # init files could set it); provision the dictionaries there.
-        xdg.configFile."enchant/hunspell/en_US.dic".source =
-          "${pkgs.hunspellDicts.en_US}/share/hunspell/en_US.dic";
-        xdg.configFile."enchant/hunspell/en_US.aff".source =
-          "${pkgs.hunspellDicts.en_US}/share/hunspell/en_US.aff";
+          programs.emacs = {
+            enable = lib.mkDefault true;
+            package = lib.mkDefault cfg.package;
+            extraPackages = lib.mkDefault mergedExtraPackages;
+          };
+        }
+        (lib.mkIf consultGhBundleEnabled {
+          # Emacs resolves gh through the packages-deps profile (nixpkgs
+          # consult-gh propagates it); this profile copy serves shells
+          # and other gh consumers outside the workspace devshell.
+          home.packages = [ pkgs.gh ];
+        })
+        (lib.mkIf jinxBundleEnabled {
+          # Enchant scans its per-user config dir for hunspell dictionaries,
+          # independent of session env (XDG_DATA_DIRS is cached by GLib before
+          # init files could set it); provision the dictionaries there.
+          xdg.configFile."enchant/hunspell/en_US.dic".source =
+            "${pkgs.hunspellDicts.en_US}/share/hunspell/en_US.dic";
+          xdg.configFile."enchant/hunspell/en_US.aff".source =
+            "${pkgs.hunspellDicts.en_US}/share/hunspell/en_US.aff";
 
-        # The personal dictionary is runtime-mutable (jinx-correct's save
-        # keys rewrite it), so it cannot be a store symlink; converge the
-        # declared words in by append-only merge instead.
-        home.activation = lib.mkIf (cfg.jinxPersonalWords != [ ]) {
-          jinxMergePersonalDict = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-            run ${lib.getExe jinxMergePersonalDict} ${jinxDeclaredWords} \
-              ${lib.escapeShellArg "${config.xdg.configHome}/enchant/en_US.dic"}
+          # The personal dictionary is runtime-mutable (jinx-correct's save
+          # keys rewrite it), so it cannot be a store symlink; converge the
+          # declared words in by append-only merge instead.
+          home.activation = lib.mkIf (cfg.jinxPersonalWords != [ ]) {
+            jinxMergePersonalDict = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+              run ${lib.getExe jinxMergePersonalDict} ${jinxDeclaredWords} \
+                ${lib.escapeShellArg "${config.xdg.configHome}/enchant/en_US.dic"}
+            '';
+          };
+        })
+        (lib.mkIf eglotBundleEnabled {
+          ch-emacs-config.emacs.extraInitContent = lib.mkAfter ''
+            ;; Language servers from the shared table (../lib/language-servers.nix),
+            ;; store-pinned for GUI Emacs sessions without HM PATH.
+            ;; Prepended entries win over eglot's built-in server table.
+            (with-eval-after-load 'eglot
+              (add-to-list 'eglot-server-programs
+                           '(nix-ts-mode . (${elispStrings languageServers.nil.cmd})))
+              (add-to-list 'eglot-server-programs
+                           '(python-base-mode . (${elispStrings languageServers.ty-ruff.cmd})))
+              (add-to-list 'eglot-server-programs
+                           '(markdown-ts-mode . (${elispStrings languageServers.marksman.cmd})))
+              (add-to-list 'eglot-server-programs
+                           '(((js-base-mode :language-id "javascript")
+                              (tsx-ts-mode :language-id "typescriptreact")
+                              (typescript-ts-mode :language-id "typescript"))
+                             . (${elispStrings languageServers.typescript-language-server.cmd})))
+              (add-to-list 'eglot-server-programs
+                           '((json-ts-mode js-json-mode)
+                             . (${elispStrings languageServers.vscode-json-language-server.cmd})))
+              (add-to-list 'eglot-server-programs
+                           '(mermaid-ts-mode . (${elispStrings languageServers.merman-lsp.cmd}))))
+            (setq-default eglot-workspace-configuration
+                          '${toElispPlist lspWorkspaceSettings})
           '';
-        };
-      })
-      (lib.mkIf eglotBundleEnabled {
-        ch-emacs-config.emacs.extraInitContent = lib.mkAfter ''
-          ;; Language servers from the shared table (../lib/language-servers.nix),
-          ;; store-pinned for GUI Emacs sessions without HM PATH.
-          ;; Prepended entries win over eglot's built-in server table.
-          (with-eval-after-load 'eglot
-            (add-to-list 'eglot-server-programs
-                         '(nix-ts-mode . (${elispStrings languageServers.nil.cmd})))
-            (add-to-list 'eglot-server-programs
-                         '(python-base-mode . (${elispStrings languageServers.ty-ruff.cmd})))
-            (add-to-list 'eglot-server-programs
-                         '(markdown-ts-mode . (${elispStrings languageServers.marksman.cmd})))
-            (add-to-list 'eglot-server-programs
-                         '(((js-base-mode :language-id "javascript")
-                            (tsx-ts-mode :language-id "typescriptreact")
-                            (typescript-ts-mode :language-id "typescript"))
-                           . (${elispStrings languageServers.typescript-language-server.cmd})))
-            (add-to-list 'eglot-server-programs
-                         '((json-ts-mode js-json-mode)
-                           . (${elispStrings languageServers.vscode-json-language-server.cmd})))
-            (add-to-list 'eglot-server-programs
-                         '(mermaid-ts-mode . (${elispStrings languageServers.merman-lsp.cmd}))))
-          (setq-default eglot-workspace-configuration
-                        '${toElispPlist lspWorkspaceSettings})
-        '';
-      })
-      (lib.mkIf mermaidTsModeBundleEnabled {
-        ch-emacs-config.emacs.extraInitContent = lib.mkAfter ''
-          ;; Nix-baked headless renderer path for mermaid-preview.
-          (use-package mermaid-preview
-            :demand t
-            :config
-            (setq mermaid-preview-command (list "${lib.getExe merman}" "mmdc")))
-        '';
-      })
-      (lib.mkIf renderDwimBundleEnabled ({
-        ch-emacs-config.emacs.extraInitContent = lib.mkAfter ''
-          ;; Nix-baked renderer and detector paths for render-dwim.
-          (use-package render-dwim
-            :demand t
-            :config
-            (setq render-dwim-mermaid-command (list "${lib.getExe merman}" "mmdc"))
-            (setq render-dwim-detect-command (list "${lib.getExe merman}" "detect")))
-        '';
-      }))
-      (lib.mkIf daemonBundleEnabled {
-        # The launchers live in the profile so the desktop entry, pins,
-        # and $EDITOR can reference them by stable path (rationale at
-        # their definition above).
-        home.packages = [
-          emacsclientDesktopLauncher
-          emacsclientEditorLauncher
-        ];
-
-        # Desktop launches must never fall back to spawning an unmanaged
-        # daemon: the stock emacsclient.desktop passes --alternate-editor=
-        # (empty), which forks a bare `emacs --daemon` whenever the canonical
-        # socket is unreachable — exactly what the rotation window looks
-        # like — and that rogue then deletes and rebinds the socket path,
-        # stealing custody from the unit daemon and swallowing later taints.
-        # This entry displaces the package's own one in the profile (same
-        # desktop-file id; xdg.desktopEntries installs via home.packages)
-        # and routes launches through the runtime-resolving launcher's
-        # stable profile path — desktop caches and pins keep whatever
-        # Exec they saw at index time, so nothing per-generation may
-        # appear in it.
-        xdg.desktopEntries.emacsclient = {
-          name = "Emacs (Client)";
-          genericName = "Text Editor";
-          comment = "Edit text";
-          exec = "${config.home.profileDirectory}/bin/emacsclient-desktop-launcher %F";
-          icon = "emacs";
-          terminal = false;
-          type = "Application";
-          categories = [
-            "Development"
-            "TextEditor"
+        })
+        (lib.mkIf mermaidTsModeBundleEnabled {
+          ch-emacs-config.emacs.extraInitContent = lib.mkAfter ''
+            ;; Nix-baked headless renderer path for mermaid-preview.
+            (use-package mermaid-preview
+              :demand t
+              :config
+              (setq mermaid-preview-command (list "${lib.getExe merman}" "mmdc")))
+          '';
+        })
+        (lib.mkIf renderDwimBundleEnabled ({
+          ch-emacs-config.emacs.extraInitContent = lib.mkAfter ''
+            ;; Nix-baked renderer and detector paths for render-dwim.
+            (use-package render-dwim
+              :demand t
+              :config
+              (setq render-dwim-mermaid-command (list "${lib.getExe merman}" "mmdc"))
+              (setq render-dwim-detect-command (list "${lib.getExe merman}" "detect")))
+          '';
+        }))
+        (lib.mkIf daemonBundleEnabled {
+          # The launchers live in the profile so the desktop entry, pins,
+          # and $EDITOR can reference them by stable path (rationale at
+          # their definition above).
+          home.packages = [
+            emacsclientDesktopLauncher
+            emacsclientEditorLauncher
           ];
-          mimeType = [
-            "text/english"
-            "text/plain"
-            "text/x-makefile"
-            "text/x-c++hdr"
-            "text/x-c++src"
-            "text/x-chdr"
-            "text/x-csrc"
-            "text/x-java"
-            "text/x-moc"
-            "text/x-pascal"
-            "text/x-tcl"
-            "text/x-tex"
-            "application/x-shellscript"
-            "text/x-c"
-            "text/x-c++"
-          ];
-          startupNotify = true;
-          settings.StartupWMClass = "Emacs";
-        };
 
-        # With a managed daemon in the session, it is the editor.  The
-        # stable profile path outlives the shells that capture it.
-        home.sessionVariables.EDITOR = "${config.home.profileDirectory}/bin/emacsclient-editor-launcher";
-
-        # Template unit shared by all generation instances.
-        # %i is the 12-char store hash of the Emacs package for this generation,
-        # used only as a stable systemd instance name for tracking; the daemon
-        # itself always owns the canonical "server" socket name.
-        systemd.user.services."emacs-daemon@" = {
-          Unit = {
-            Description = "Emacs daemon (generation %i)";
-            After = [ "graphical-session-pre.target" ];
-            PartOf = [ "graphical-session.target" ];
-            # ExecStart bakes in a per-generation store path, so this unit
-            # file changes every switch; by default sd-switch would then
-            # restart all running instances — killing the live daemon.
-            # keep-old leaves running instances untouched; the activation
-            # script below starts the new generation's instance itself.
-            X-SwitchMethod = "keep-old";
+          # Desktop launches must never fall back to spawning an unmanaged
+          # daemon: the stock emacsclient.desktop passes --alternate-editor=
+          # (empty), which forks a bare `emacs --daemon` whenever the canonical
+          # socket is unreachable — exactly what the rotation window looks
+          # like — and that rogue then deletes and rebinds the socket path,
+          # stealing custody from the unit daemon and swallowing later taints.
+          # This entry displaces the package's own one in the profile (same
+          # desktop-file id; xdg.desktopEntries installs via home.packages)
+          # and routes launches through the runtime-resolving launcher's
+          # stable profile path — desktop caches and pins keep whatever
+          # Exec they saw at index time, so nothing per-generation may
+          # appear in it.
+          xdg.desktopEntries.emacsclient = {
+            name = "Emacs (Client)";
+            genericName = "Text Editor";
+            comment = "Edit text";
+            exec = "${config.home.profileDirectory}/bin/emacsclient-desktop-launcher %F";
+            icon = "emacs";
+            terminal = false;
+            type = "Application";
+            categories = [
+              "Development"
+              "TextEditor"
+            ];
+            mimeType = [
+              "text/english"
+              "text/plain"
+              "text/x-makefile"
+              "text/x-c++hdr"
+              "text/x-c++src"
+              "text/x-chdr"
+              "text/x-csrc"
+              "text/x-java"
+              "text/x-moc"
+              "text/x-pascal"
+              "text/x-tcl"
+              "text/x-tex"
+              "application/x-shellscript"
+              "text/x-c"
+              "text/x-c++"
+            ];
+            startupNotify = true;
+            settings.StartupWMClass = "Emacs";
           };
-          Service = {
-            Type = "notify";
-            # Always bind to the canonical "server" socket; the activation
-            # script mv's the old socket aside before starting this instance.
-            # Use the baked-in Nix store path — ~/.nix-profile may not be set
-            # up when the daemon first starts.
-            ExecStart = "${config.programs.emacs.finalPackage}/bin/emacs --fg-daemon=server";
-            Restart = "no";
-            StandardInput = "null";
+
+          # With a managed daemon in the session, it is the editor.  The
+          # stable profile path outlives the shells that capture it.
+          home.sessionVariables.EDITOR = "${config.home.profileDirectory}/bin/emacsclient-editor-launcher";
+
+          # Template unit shared by all generation instances.
+          # %i is the 12-char store hash of the Emacs package for this generation,
+          # used only as a stable systemd instance name for tracking; the daemon
+          # itself always owns the canonical "server" socket name.
+          systemd.user.services."emacs-daemon@" = {
+            Unit = {
+              Description = "Emacs daemon (generation %i)";
+              After = [ "graphical-session-pre.target" ];
+              PartOf = [ "graphical-session.target" ];
+              # ExecStart bakes in a per-generation store path, so this unit
+              # file changes every switch; by default sd-switch would then
+              # restart all running instances — killing the live daemon.
+              # keep-old leaves running instances untouched; the activation
+              # script below starts the new generation's instance itself.
+              X-SwitchMethod = "keep-old";
+            };
+            Service = {
+              Type = "notify";
+              # Always bind to the canonical "server" socket; the activation
+              # script mv's the old socket aside before starting this instance.
+              # Use the baked-in Nix store path — ~/.nix-profile may not be set
+              # up when the daemon first starts.
+              ExecStart = "${config.programs.emacs.finalPackage}/bin/emacs --fg-daemon=server";
+              Restart = "no";
+              StandardInput = "null";
+            };
+            # Not WantedBy anything — activation script starts the right instance.
           };
-          # Not WantedBy anything — activation script starts the right instance.
-        };
 
-        # At each HM switch, if the Emacs package changed: taint the old daemon,
-        # move its socket aside, then start the new generation's instance.
-        home.activation.emacsRotateDaemon = lib.hm.dag.entryAfter [ "reloadSystemd" ] ''
-          ${builtins.readFile ./lib/emacs-gen-hash.sh}
-          _emacs_bin="$newGenPath/home-path/bin/emacs"
-          _emacs_hash=$(emacs_gen_hash "$_emacs_bin") || _emacs_hash="default"
-          _socket_dir="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/emacs"
-          _canonical="$_socket_dir/server"
+          # At each HM switch, if the Emacs package changed: taint the old daemon,
+          # move its socket aside, then start the new generation's instance.
+          home.activation.emacsRotateDaemon = lib.hm.dag.entryAfter [ "reloadSystemd" ] ''
+            ${builtins.readFile ./lib/emacs-gen-hash.sh}
+            _emacs_bin="$newGenPath/home-path/bin/emacs"
+            _emacs_hash=$(emacs_gen_hash "$_emacs_bin") || _emacs_hash="default"
+            _socket_dir="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/emacs"
+            _canonical="$_socket_dir/server"
 
-          # Sweep drain sockets whose daemon is gone (a draining daemon
-          # deletes its own socket on clean exit, but not on SIGKILL).
-          for _drain_sock in "$_socket_dir"/server-drain-*; do
-            [ -S "$_drain_sock" ] || continue
-            ${config.programs.emacs.finalPackage}/bin/emacsclient \
-              --socket-name="$_drain_sock" --eval t >/dev/null 2>&1 \
-              || rm -f "$_drain_sock"
-          done
+            # Sweep drain sockets whose daemon is gone (a draining daemon
+            # deletes its own socket on clean exit, but not on SIGKILL).
+            for _drain_sock in "$_socket_dir"/server-drain-*; do
+              [ -S "$_drain_sock" ] || continue
+              ${config.programs.emacs.finalPackage}/bin/emacsclient \
+                --socket-name="$_drain_sock" --eval t >/dev/null 2>&1 \
+                || rm -f "$_drain_sock"
+            done
 
-          # Check whether the running instance already matches this generation.
-          _running=$(${pkgs.systemd}/bin/systemctl --user show \
-            "emacs-daemon@$_emacs_hash.service" --property=ActiveState --value 2>/dev/null || echo inactive)
+            # Check whether the running instance already matches this generation.
+            _running=$(${pkgs.systemd}/bin/systemctl --user show \
+              "emacs-daemon@$_emacs_hash.service" --property=ActiveState --value 2>/dev/null || echo inactive)
 
-          # Both branches announce themselves unconditionally: a switch
-          # that does NOT rotate looks identical to one that does from
-          # the outside (frames stay up either way), and a user who just
-          # switched expecting new Emacs config reads the daemon's
-          # continued residency as a rotation failure unless told the
-          # generation is unchanged (field incident 2026-08-09).
-          if [ "$_running" = "active" ]; then
-            noteEcho "Emacs unchanged (daemon generation $_emacs_hash already active); not rotating"
-          else
-            noteEcho "Rotating Emacs daemon to generation $_emacs_hash"
+            # Both branches announce themselves unconditionally: a switch
+            # that does NOT rotate looks identical to one that does from
+            # the outside (frames stay up either way), and a user who just
+            # switched expecting new Emacs config reads the daemon's
+            # continued residency as a rotation failure unless told the
+            # generation is unchanged (field incident 2026-08-09).
+            if [ "$_running" = "active" ]; then
+              noteEcho "Emacs unchanged (daemon generation $_emacs_hash already active); not rotating"
+            else
+              noteEcho "Rotating Emacs daemon to generation $_emacs_hash"
 
-            # Retire the old daemon (if reachable): rename its socket to a
-            # per-instance drain name first — closing the window where new
-            # clients still land on it — then taint it through the renamed
-            # socket so it adopts the drain name and starts its drain timer.
-            if [ -S "$_canonical" ]; then
-              _old_pid=$(${config.programs.emacs.finalPackage}/bin/emacsclient \
-                --socket-name="$_canonical" --eval '(emacs-pid)' 2>/dev/null \
-                | tr -cd '0-9' || true)
-              if [ -n "$_old_pid" ]; then
-                _drain_name="server-drain-$_old_pid"
-                mv "$_canonical" "$_socket_dir/$_drain_name" 2>/dev/null || true
-                ${config.programs.emacs.finalPackage}/bin/emacsclient \
-                  --socket-name="$_socket_dir/$_drain_name" \
-                  --eval "(when (fboundp 'ch-emacs-config-daemon-taint) (ch-emacs-config-daemon-taint \"$_drain_name\"))" \
-                  2>/dev/null || true
-              else
-                # Nothing answers on the canonical path: a stale socket file
-                # left by a crashed or killed daemon.  Remove it — a stale
-                # file here makes emacsclient fail, and desktop fallbacks
-                # would then spawn unmanaged daemons.
-                rm -f "$_canonical"
+              # Retire the old daemon (if reachable): rename its socket to a
+              # per-instance drain name first — closing the window where new
+              # clients still land on it — then taint it through the renamed
+              # socket so it adopts the drain name and starts its drain timer.
+              if [ -S "$_canonical" ]; then
+                _old_pid=$(${config.programs.emacs.finalPackage}/bin/emacsclient \
+                  --socket-name="$_canonical" --eval '(emacs-pid)' 2>/dev/null \
+                  | tr -cd '0-9' || true)
+                if [ -n "$_old_pid" ]; then
+                  _drain_name="server-drain-$_old_pid"
+                  mv "$_canonical" "$_socket_dir/$_drain_name" 2>/dev/null || true
+                  ${config.programs.emacs.finalPackage}/bin/emacsclient \
+                    --socket-name="$_socket_dir/$_drain_name" \
+                    --eval "(when (fboundp 'ch-emacs-config-daemon-taint) (ch-emacs-config-daemon-taint \"$_drain_name\"))" \
+                    2>/dev/null || true
+                else
+                  # Nothing answers on the canonical path: a stale socket file
+                  # left by a crashed or killed daemon.  Remove it — a stale
+                  # file here makes emacsclient fail, and desktop fallbacks
+                  # would then spawn unmanaged daemons.
+                  rm -f "$_canonical"
+                fi
               fi
-            fi
 
-            # Start the new generation's daemon instance.
-            mkdir -p "$_socket_dir"
-            chmod 700 "$_socket_dir"
-            ${pkgs.systemd}/bin/systemctl --user start "emacs-daemon@$_emacs_hash.service" || true
-          fi
-        '';
-      })
-    ]
+              # Start the new generation's daemon instance.
+              mkdir -p "$_socket_dir"
+              chmod 700 "$_socket_dir"
+              ${pkgs.systemd}/bin/systemctl --user start "emacs-daemon@$_emacs_hash.service" || true
+            fi
+          '';
+        })
+      ]
     ))
   ];
 }

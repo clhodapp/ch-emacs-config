@@ -35,19 +35,6 @@
     homeManager.exported = modules: { inherit (modules) emacs; };
   };
 
-  # What an agent needs to talk to a live Emacs: two hook scripts and a
-  # skill describing the MCP server's tools. Exported as an interface so
-  # a consumer names these rather than a path into this tree, which
-  # would make the directory layout the contract and break silently when
-  # a file moves. This flake still knows nothing about any particular
-  # agent: it publishes what it has, and the wiring lives with whoever
-  # registers hooks.
-  flake.agentIntegration = {
-    cwdHookScript = ../../../modules/home-manager/emacs/lib/emacs-claude-cwd-hook.sh;
-    consentHookScript = ../../../modules/home-manager/emacs/lib/emacs-claude-consent-hook.sh;
-    toolsSkill = ../../../modules/home-manager/emacs/skills/emacs-tools;
-  };
-
   partitionedAttrs.checks = "checks";
   # packages are built from the same emacs-overlay nixpkgs as the checks
   # that validate them; no independent pin is possible without duplicating
@@ -133,11 +120,8 @@
             };
             # merman: the mermaid renderer and language server, its own repo.
             merman = inputs.merman.packages.${system}.merman;
-            aiCommitSrc = "${self}/modules/home-manager/emacs/packages/ai-commit";
-            claudeQueueSrc = "${self}/modules/home-manager/emacs/packages/claude-queue";
             markdownTableFixSrc = "${self}/modules/home-manager/emacs/packages/markdown-table-fix";
             renderDwimSrc = "${self}/modules/home-manager/emacs/packages/render-dwim";
-            semanticFinderSrc = "${self}/modules/home-manager/emacs/packages/semantic-finder";
             emacsTestsSrc = "${self}/modules/home-manager/emacs/tests";
             # Batch-load the full init the way real startup does (package
             # activation fires the autoload hook).  load-init.el traps the
@@ -258,49 +242,6 @@
                 # (stop_hook_active): a block headed "tic-check: rewrite" on
                 # the "tic" verdict only; silence on the clean verdict and
                 # on a regenerated message.
-                ai-commit-ert = pkgs.runCommand "ai-commit-ert" { } ''
-                  ${emacsPgtkScope.emacs}/bin/emacs --batch \
-                    -L ${aiCommitSrc} \
-                    -l tests/ai-commit-ert.el \
-                    -f ert-run-tests-batch-and-exit
-                  touch $out
-                '';
-                # The semantic finder's server-free surface: slicing,
-                # staleness, response parsing, ranking, and the stale-OK
-                # on-demand indexing policy (requests mocked).
-                semantic-finder-ert = pkgs.runCommand "semantic-finder-ert" { } ''
-                  export HOME="$TMPDIR"
-                  ${emacsPgtkScope.emacs}/bin/emacs --batch \
-                    -L ${semanticFinderSrc} \
-                    -l tests/semantic-finder-ert.el \
-                    -f ert-run-tests-batch-and-exit
-                  touch $out
-                '';
-                # claude-queue requires semantic-finder (the agent finder
-                # ranks transcripts through its embedding client).
-                claude-queue-ert = pkgs.runCommand "claude-queue-ert" { } ''
-                  export HOME="$TMPDIR"
-                  ${emacsPgtkScope.emacs}/bin/emacs --batch \
-                    -L ${claudeQueueSrc} \
-                    -L ${semanticFinderSrc} \
-                    -l tests/claude-queue-ert.el \
-                    -f ert-run-tests-batch-and-exit
-                  touch $out
-                '';
-                # The consent spool's Emacs half (same package directory
-                # as claude-queue): layout, territory records, dead-pid
-                # pruning, answer delivery, rendering.  The hook half is
-                # bash, exercised live against the CLI, not here.
-                claude-consent-ert = pkgs.runCommand "claude-consent-ert" { } ''
-                  export HOME="$TMPDIR"
-                  ${emacsPgtkScope.emacs}/bin/emacs --batch \
-                    -L ${claudeQueueSrc} \
-                    -l tests/claude-consent-ert.el \
-                    -f ert-run-tests-batch-and-exit
-                  touch $out
-                '';
-                # The scope emacs (not a bare one) supplies the markdown
-                # tree-sitter grammar the fixer parses tables with; the
                 # test file activates packages to get it on the load path.
                 markdown-table-fix-ert = pkgs.runCommand "markdown-table-fix-ert" { } ''
                   export HOME="$TMPDIR"
@@ -310,23 +251,6 @@
                     -f ert-run-tests-batch-and-exit
                   touch $out
                 '';
-                # MCP agent tools against the full init: registration (which
-                # validates the tool docstring schemas), the non-LSP tools end
-                # to end, and clean tool errors from the LSP-backed ones.
-                emacs-mcp-tools-ert =
-                  pkgs.runCommand "emacs-mcp-tools-ert"
-                    {
-                      # The mermaid tests skip without an mmdc on PATH;
-                      # the shim makes them exercise the real renderer.
-                      nativeBuildInputs = [ mermanMmdcShim ];
-                    }
-                    ''
-                      export HOME="$TMPDIR"
-                      ${emacsScope.emacs}/bin/emacs --batch \
-                        -l ${emacsTestsSrc}/mcp-tools-ert.el \
-                        -f ert-run-tests-batch-and-exit
-                      touch $out
-                    '';
                 # render-dwim's extraction and normalization, plus the
                 # render and detect paths end to end (merman on PATH).
                 render-dwim-ert =
@@ -342,17 +266,6 @@
                         -f ert-run-tests-batch-and-exit
                       touch $out
                     '';
-                # The collab-comments integration: the add-comment/list-comments
-                # MCP tools with their edit-contract anchor matching, and threads
-                # surviving present and transcript re-renders.  The package's own
-                # suite runs in its repository (github:clhodapp/collab-comments).
-                emacs-collab-comments-ert = pkgs.runCommand "emacs-collab-comments-ert" { } ''
-                  export HOME="$TMPDIR"
-                  ${emacsScope.emacs}/bin/emacs --batch \
-                    -l ${emacsTestsSrc}/collab-comments-ert.el \
-                    -f ert-run-tests-batch-and-exit
-                  touch $out
-                '';
                 # Behavioral contract of the personal-dictionary merge: fresh
                 # creation, append-only dedup against runtime-saved words,
                 # idempotence, trailing-newline repair, declared-list hygiene.
