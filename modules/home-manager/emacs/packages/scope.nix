@@ -11,7 +11,10 @@ let
   mkLocalBuild = epkgs.callPackage ./builders/local { };
 in
 {
-  inherit mkLocalBuild;
+  # epkgs and version travel with the scope so a layer's overlay can
+  # build a package the same way the definitions below do: its `final`
+  # is this attrset, and callPackage comes from epkgs.
+  inherit mkLocalBuild epkgs version;
   evil-ghostel = epkgs.callPackage ./evil-ghostel {
     inherit mkLocalBuild version;
     ghostel = epkgs.ghostel;
