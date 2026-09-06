@@ -212,13 +212,13 @@
                     # Forces the jinx personal-dictionary option type and
                     # the merge activation entry through evaluation.
                     jinxPersonalWords = [ "hmcheckword" ];
-                    # A bundle under a name the spec does not have, the way
-                    # a layer above contributes its own. Its init carries a
-                    # marker the emacs-contributed-bundle check looks for in
-                    # the built init package.
-                    bundles.hm-check-contributed = {
+                    # A bundle defined through the option under a name the
+                    # spec does not have, the way a layer above defines its
+                    # own. Its init carries a marker the emacs-option-bundle
+                    # check looks for in the built init package.
+                    bundles.hm-check-option-bundle = {
                       enable = true;
-                      init = "(defvar ch-emacs-config-hm-check-contributed-marker t)";
+                      init = "(defvar ch-emacs-config-hm-check-option-bundle-marker t)";
                     };
                   };
                 }
@@ -241,17 +241,17 @@
                 emacs-drain-custody = mkDrainCustodyCheck "emacs" pkgs.ch-emacs-config.emacs;
                 emacs-pgtk-drain-custody = mkDrainCustodyCheck "emacs-pgtk" pkgs.ch-emacs-config.emacs-pgtk;
                 emacs-home-manager-module = emacsHomeManagerConfiguration.activationPackage;
-                # A bundle contributed through the option under a name the
-                # spec lacks reaches the built init. The resolver once
-                # walked only the spec, so such a bundle vanished without
-                # an error: its packages still installed, and only the init
-                # was missing it.
-                emacs-contributed-bundle =
+                # A bundle defined through the option under a name the spec
+                # lacks reaches the built init. The resolver once walked
+                # only the spec, so such a bundle vanished without an error:
+                # its packages still installed, and only the init was
+                # missing it.
+                emacs-option-bundle =
                   let
                     initPackage = emacsHomeManagerConfiguration.config.ch-emacs-config.emacs.build.packageScope.default;
                   in
-                  pkgs.runCommand "emacs-contributed-bundle" { } ''
-                    grep -q ch-emacs-config-hm-check-contributed-marker \
+                  pkgs.runCommand "emacs-option-bundle" { } ''
+                    grep -q ch-emacs-config-hm-check-option-bundle-marker \
                       ${initPackage}/share/emacs/site-lisp/elpa/ch-emacs-config-default-*/ch-emacs-config-default.el
                     touch $out
                   '';

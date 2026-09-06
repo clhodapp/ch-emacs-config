@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
 #
 # The bundle set an init is built from: this configuration's own spec,
-# with a consumer's `enable` overrides applied, plus every bundle a
-# consumer or a layer above contributed under a name the spec does not
-# have. The spec stays the source for its own bundles (their init and
-# packages come from here, not from the option), so a consumer can only
-# switch one off; a contributed bundle arrives whole through the option
-# and is taken as it is.
+# with a consumer's `enable` overrides applied, plus every bundle the
+# option defines under a name the spec does not have (a layer above
+# defines its bundles that way). The spec stays the source for its own
+# bundles, whose init and packages come from here rather than from the
+# option, so a consumer can only switch one of those off; a bundle the
+# option defines is taken as it is.
 { lib }:
 let
   bundleSpec = import ../bundles/spec.nix;
@@ -23,6 +23,6 @@ let
       enable = userBundle.enable;
     }
   ) bundleSpec;
-  contributed = lib.filterAttrs (name: _: !(bundleSpec ? ${name})) userBundles;
+  fromOption = lib.filterAttrs (name: _: !(bundleSpec ? ${name})) userBundles;
 in
-fromSpec // contributed
+fromSpec // fromOption
