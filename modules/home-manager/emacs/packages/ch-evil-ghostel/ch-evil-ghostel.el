@@ -3,7 +3,7 @@
 
 ;;; Commentary:
 ;;
-;; Four behaviors layered on upstream `evil-ghostel', using ghostel's
+;; Five behaviors layered on upstream `evil-ghostel', using ghostel's
 ;; public API only so upstream can move without this file moving with
 ;; it.  Everything here is additive: no upstream definition is
 ;; replaced, and each piece degrades to upstream's behavior if its
@@ -30,6 +30,7 @@
 
 (declare-function ghostel-alt-screen-p "ghostel")
 (declare-function ghostel-paste-string "ghostel")
+(declare-function ghostel-readonly-exit "ghostel")
 (declare-function ghostel-send-key "ghostel")
 (declare-function ghostel-yank "ghostel")
 (declare-function ch/ghostel-send-escape "ghostel-funcs")
@@ -117,6 +118,27 @@ motion is the right thing and runs instead."
       (when (commandp cmd)
         (call-interactively cmd)))))
 
+;;; ESC leaves copy mode
+;;
+;; Ghostel's read-only modes (copy mode and Emacs mode) exit on `q' or
+;; `ghostel-readonly-exit'.  Evil normal state binds ESC to
+;; `evil-force-normal-state', which changes nothing there, so a buffer
+;; that dropped into copy mode has no ESC way out.  In an Evil buffer ESC
+;; is the reflex for "back to where input goes", so it leaves the
+;; read-only mode when one is active.  Both modes make the buffer
+;; read-only and nothing else in a ghostel buffer does, which makes
+;; `buffer-read-only' the public signal for them.
+
+(defun ch/evil-ghostel-escape-or-readonly-exit ()
+  "Leave copy or Emacs mode when one is active, else do what ESC did.
+`ghostel-readonly-exit' returns to the input mode that was active
+before entry, with point back on the live cursor.  Outside those modes
+ESC keeps its normal-state meaning, `evil-force-normal-state'."
+  (interactive)
+  (if buffer-read-only
+      (ghostel-readonly-exit)
+    (evil-force-normal-state)))
+
 ;;; Wiring
 
 (defvar ch/evil-ghostel--advice
@@ -148,6 +170,11 @@ whether it applies, so this is safe to leave on."
 ;; delivers Shift-ESC as ESC.  The sender itself lives in ghostel-funcs.
 (evil-define-key* '(normal visual insert) evil-ghostel-mode-map
                   (kbd "S-<escape>") #'ch/ghostel-send-escape)
+
+;; Normal state only: in visual state ESC ends the selection first, and
+;; in insert state upstream's `evil-ghostel--escape' owns the routing.
+(evil-define-key* 'normal evil-ghostel-mode-map
+                  (kbd "<escape>") #'ch/evil-ghostel-escape-or-readonly-exit)
 
 (evil-define-key* 'insert evil-ghostel-mode-map
                   (kbd "C-y") #'ch/evil-ghostel-yank-or-passthrough

@@ -4,7 +4,7 @@
 ;;; Commentary:
 ;;
 ;; The point of these tests is the interface, not the terminal.  This
-;; package layers four behaviors on upstream evil-ghostel using only
+;; package layers five behaviors on upstream evil-ghostel using only
 ;; ghostel's public functions, and the value of that is that upstream
 ;; can move without dragging a vendored fork along.  So each test
 ;; records what reached ghostel: the function called and its arguments.
@@ -68,6 +68,7 @@ assertion fails."
   (dolist (entry '((ghostel-alt-screen-p . 0)
                    (ghostel-send-key . 1)
                    (ghostel-paste-string . 1)
+                   (ghostel-readonly-exit . 0)
                    (ghostel-yank . 0)))
     (let* ((sym (car entry))
            (wanted (cdr entry))
@@ -170,6 +171,33 @@ assertion fails."
       (should ran)
       (should (null ch-evil-ghostel-tests--sent)))))
 
+;;; ESC leaves copy mode
+
+(ert-deftest ch-evil-ghostel-escape-exits-readonly ()
+  "In copy or Emacs mode, where the buffer is read-only, ESC runs ghostel's exit."
+  (let ((exited nil) (forced nil))
+    (cl-letf (((symbol-function 'ghostel-readonly-exit)
+               (lambda () (setq exited t)))
+              ((symbol-function 'evil-force-normal-state)
+               (lambda () (setq forced t))))
+      (with-temp-buffer
+        (setq buffer-read-only t)
+        (call-interactively #'ch/evil-ghostel-escape-or-readonly-exit)))
+    (should exited)
+    (should-not forced)))
+
+(ert-deftest ch-evil-ghostel-escape-keeps-evil-meaning-when-live ()
+  "With the terminal live, ESC still does what normal state binds it to."
+  (let ((exited nil) (forced nil))
+    (cl-letf (((symbol-function 'ghostel-readonly-exit)
+               (lambda () (setq exited t)))
+              ((symbol-function 'evil-force-normal-state)
+               (lambda () (setq forced t))))
+      (with-temp-buffer
+        (call-interactively #'ch/evil-ghostel-escape-or-readonly-exit)))
+    (should forced)
+    (should-not exited)))
+
 ;;; Bindings
 
 (ert-deftest ch-evil-ghostel-bindings-installed ()
@@ -184,6 +212,10 @@ Living in `evil-ghostel-mode-map' is what makes them follow
                (evil-get-auxiliary-keymap evil-ghostel-mode-map 'normal)
                (kbd "S-<escape>"))
               #'ch/ghostel-send-escape))
+  (should (eq (evil-lookup-key
+               (evil-get-auxiliary-keymap evil-ghostel-mode-map 'normal)
+               (kbd "<escape>"))
+              #'ch/evil-ghostel-escape-or-readonly-exit))
   (dolist (dir '("up" "down" "left" "right"))
     (should (commandp
              (evil-lookup-key
