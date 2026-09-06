@@ -28,9 +28,9 @@ paths eventually drives a daemon that no longer exists.
 
 **Language servers from a shared table.** The eglot configuration
 renders one table of servers (`modules/home-manager/lib/language-servers.nix`,
-exported as `languageServerTable`), the same table another LSP client
-configured alongside this editor can read, so an editor and an agent
-on one project cannot disagree about how to spawn a server.
+exported as `languageServerTable`), which any other LSP client
+configured alongside this editor can read, so two clients on one
+project cannot disagree about how to spawn a server.
 
 ## Use it
 
