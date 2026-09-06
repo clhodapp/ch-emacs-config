@@ -27,7 +27,7 @@ melpaBuild {
   ];
 
   meta = {
-    homepage = "https://github.com/kraus-daniel/ghostel";
+    homepage = "https://github.com/dakra/ghostel";
     description = "Evil-mode integration for ghostel";
     license = lib.licenses.gpl3Plus;
   };

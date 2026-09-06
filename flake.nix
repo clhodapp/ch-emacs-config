@@ -15,8 +15,8 @@
     emacs-overlay.url = "github:nix-community/emacs-overlay";
     emacs-overlay.inputs.nixpkgs.follows = "nixpkgs";
 
-    # The shared server table behind the eglot configuration.
-    # The mermaid renderer behind render-dwim and mermaid-preview.
+    # The mermaid renderer behind render-dwim and mermaid-preview, and
+    # the mermaid language server the shared server table spawns.
     merman.url = "github:clhodapp/merman";
 
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

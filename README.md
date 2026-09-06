@@ -27,10 +27,10 @@ index time and never notice a profile switch, so a launcher with baked
 paths eventually drives a daemon that no longer exists.
 
 **Language servers from a shared table.** The eglot configuration
-renders
-[ch-language-servers](https://github.com/clhodapp/ch-language-servers),
-the same table an agent's LSP plugin reads, so an editor and an agent on
-one project cannot disagree about how to spawn a server.
+renders one table of servers (`modules/home-manager/lib/language-servers.nix`,
+exported as `languageServerTable`), the same table another LSP client
+configured alongside this editor can read, so an editor and an agent
+on one project cannot disagree about how to spawn a server.
 
 ## Use it
 
