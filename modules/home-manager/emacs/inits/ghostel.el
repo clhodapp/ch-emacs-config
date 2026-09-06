@@ -5,6 +5,7 @@
 ;; byte compiler flags every ghostel function as possibly missing at runtime;
 ;; declare the ones referenced outside autoload/:commands declarations.
 (declare-function ghostel-send-C-g "ghostel")
+(declare-function ch/evil-ghostel-mode "ch-evil-ghostel")
 
 (use-package ghostel
 
@@ -46,6 +47,16 @@
     :config
     (define-key ghostel-mode-map (kbd "C-c <escape>") #'ch/ghostel-toggle-escape-routing))
 
+  ;; The local additions (TUI paste, kill-ring C-y, arrow passthrough,
+  ;; S-ESC, ESC out of copy mode) bind into `evil-ghostel-mode-map' at
+  ;; load and advise upstream's paste commands through a global minor
+  ;; mode, so the package loads once upstream does and the mode is
+  ;; switched on there.
+  (use-package ch-evil-ghostel
+    :after evil-ghostel
+    :config
+    (ch/evil-ghostel-mode 1))
+
   :commands
   (ghostel
    ghostel-clear-scrollback
@@ -65,6 +76,14 @@
   ;; selection can be clobbered by the next redraw and `M-w' isn't
   ;; bound for it — an acceptable trade to never get stuck.
   (ghostel-mouse-drag-input-mode nil "no copy-mode freeze on mouse drag")
+  ;; Same trade for the point-leave trigger.  It fires from a deferred
+  ;; check after any minibuffer command that returns to this buffer, and
+  ;; in Evil normal state point sits off the terminal cursor as a matter
+  ;; of course (Evil steps back a cell on leaving insert, and evil-ghostel
+  ;; lets point roam), so `project-switch-project's command menu or M-x
+  ;; would freeze the terminal into copy mode and its message would
+  ;; clobber the prompt in the echo area.
+  (ghostel-point-leave-input-mode nil "no copy-mode freeze when point roams")
 
   :config
   ;; C-g is Emacs's quit key, so keep it out of the terminal and put an

@@ -275,7 +275,7 @@
                     -f ert-run-tests-batch-and-exit
                   touch $out
                 '';
-                # The four behaviors ch-evil-ghostel layers on upstream
+                # The five behaviors ch-evil-ghostel layers on upstream
                 # evil-ghostel, checked at the boundary that matters: which
                 # ghostel function each one calls, and with what arguments.
                 # Real ghostel and evil-ghostel are loaded, so an upstream
