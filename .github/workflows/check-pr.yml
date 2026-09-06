@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: MIT
+#
+# The pull request's own check: this file is the pull request's copy,
+# run in the pull request's context, where any cache it saves is
+# scoped to the request's merge ref and can be restored only by that
+# request's later runs, never by main.
+#
+# check.yml (main's copy) builds every pull request that leaves the
+# pipeline alone, so this run succeeds at once for those. A request
+# that changes .github/ is exactly the one check.yml declines to build,
+# and the only one whose new pipeline needs exercising; it is built
+# here, restoring main's cache and saving under its own scope. Between
+# the two files, each push is built exactly once.
+
+name: check-pr
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: check-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Decide whether this run builds
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate \
+               --jq '.[].filename' | grep -q '^\.github/'; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "This pull request leaves the pipeline alone; check.yml builds it."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.guard.outputs.build == 'true'
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        if: steps.guard.outputs.build == 'true'
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            sandbox = true
+
+      # Restores main's newest entry; the save lands under this pull
+      # request's scope, one entry per head commit, older ones purged.
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        if: steps.guard.outputs.build == 'true'
+        with:
+          primary-key: nix-${{ runner.os }}-pr-${{ github.event.pull_request.head.sha }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 5G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-pr-
+          purge-created: 0
+          purge-primary-key: never
+
+      - name: Run the flake checks
+        if: steps.guard.outputs.build == 'true'
+        run: nix flake check --print-build-logs
+
+      - name: Root the check outputs for the cache
+        if: steps.guard.outputs.build == 'true'
+        run: |
+          for name in $(nix eval --json '.#checks.x86_64-linux' --apply builtins.attrNames | jq -r '.[]'); do
+            nix build --out-link "result-$name" ".#checks.x86_64-linux.$name"
+          done

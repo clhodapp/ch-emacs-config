@@ -1,22 +1,41 @@
-# Build and test on every push and pull request.
+# SPDX-License-Identifier: MIT
 #
-# `nix flake check` builds the package and runs the smoke check that
-# drives the built binaries over the interfaces callers use. That is the
-# same command a contributor runs locally.
+# The trusted check: it runs on pushes to main and on pull requests,
+# and it is the run that reads and writes the build cache scoped to
+# main. A cold runner native-compiles the whole Emacs package set (the
+# better part of an hour); with the cache restored, a run builds only
+# what changed.
+#
+# A pull request is checked through `pull_request_target`, so this file
+# is taken from main, not from the pull request. That is what makes the
+# cache safe to write from a pull request: the request cannot edit the
+# steps that decide whether to save. The one thing a request could use
+# to reach the runner's store outside Nix's sandbox is this pipeline
+# itself, so a request that touches .github/ gets no build here at all;
+# check-pr.yml builds it instead, under its own cache scope, which main
+# can never restore. Nothing else from the checkout runs outside Nix:
+# the only command is `nix flake check`, evaluation is pure, and the
+# sandbox stays on.
+#
+# The saved store is the runtime closure of what the checks produced,
+# rooted by out-links before the save; everything else is collected.
 
 name: check
 
 on:
   push:
     branches: [main]
-  pull_request:
+  pull_request_target:
   workflow_dispatch:
 
+# Read-only, including for pull_request_target, which would otherwise
+# get a write token.
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
-  group: check-${{ github.ref }}
+  group: check-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -24,13 +43,64 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - name: Decide whether this run builds
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [[ -z "$PR" ]]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate \
+               --jq '.[].filename' | grep -q '^\.github/'; then
+            echo "This pull request changes the pipeline; check-pr.yml builds it."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
 
-      - uses: cachix/install-nix-action@v31
+      # The pull request's head by SHA, never by branch name, so a push
+      # after the guard ran cannot swap the tree under it.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.guard.outputs.build == 'true'
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        if: steps.guard.outputs.build == 'true'
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
           extra_nix_config: |
             experimental-features = nix-command flakes
+            sandbox = true
+
+      # One entry per commit under a shared prefix: a run restores the
+      # newest entry main has, and its own save replaces it (older ones
+      # under the prefix are purged after the save).
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        if: steps.guard.outputs.build == 'true'
+        with:
+          primary-key: nix-${{ runner.os }}-${{ github.event.pull_request.head.sha || github.sha }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 5G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 0
+          purge-primary-key: never
 
       - name: Run the flake checks
+        if: steps.guard.outputs.build == 'true'
         run: nix flake check --print-build-logs
+
+      # Out-links are garbage-collection roots. Without them the store
+      # pruning before the save would delete the very outputs the cache
+      # is for; the checks are already built, so this only links them.
+      - name: Root the check outputs for the cache
+        if: steps.guard.outputs.build == 'true'
+        run: |
+          for name in $(nix eval --json '.#checks.x86_64-linux' --apply builtins.attrNames | jq -r '.[]'); do
+            nix build --out-link "result-$name" ".#checks.x86_64-linux.$name"
+          done
