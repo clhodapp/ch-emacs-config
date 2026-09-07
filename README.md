@@ -80,7 +80,12 @@ already hold, so using it means using them too:
 | `https://nix-community.cachix.org` | `nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=` |
 | `https://numtide.cachix.org` | `numtide.cachix.org-1:2ps1kLBUWjxIneOy1Ik6cQjb41X0iXVXeHigGmycPPE=` |
 
-Add all three to `extra-substituters` and `extra-trusted-public-keys`.
+The flake's `nixConfig` declares all three, so a direct `nix build` or
+`nix flake check` here uses them once accepted: answer Nix's prompt, or
+pass `--accept-flake-config`. A flake that consumes this one
+as an input must add them to its own `extra-substituters` and
+`extra-trusted-public-keys`; Nix does not carry an input's settings
+into the consumer.
 
 ## License
 
