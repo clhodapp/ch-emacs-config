@@ -5,16 +5,19 @@
 # scoped to the request's merge ref and can be restored only by that
 # request's later runs, never by main.
 #
-# check.yml (main's copy) builds every pull request that leaves the
-# pipeline alone, so this run succeeds at once for those. A request
-# that changes .github/ is exactly the one check.yml declines to build,
-# and the only one whose new pipeline needs exercising; it is built
-# here, restoring main's entry and saving under its own scope. Between
-# the two files, each push is built exactly once.
+# check.yml (main's copy, triggered by this run's completion) builds
+# every pull request that leaves the pipeline alone, so this run
+# succeeds at once for those. A request that changes .github/ is
+# exactly the one check.yml declines to build, and the only one whose
+# new pipeline needs exercising; it is built here, restoring main's
+# entry and saving under its own scope. Between the two files, each
+# push is built exactly once.
 #
 # The roots and the priority pruning are the same as in check.yml, with
-# one difference: this run never deletes another scope's entries; it
-# only trims its own roots to what fits.
+# one difference: this run's token cannot delete cache entries, so it
+# never touches another scope's and does not purge its own; entries in
+# a request's scope go when the request closes (cache-cleanup.yml) or
+# when GitHub expires them.
 
 name: check-pr
 
@@ -64,19 +67,16 @@ jobs:
 
       # Restores the newest entry this run can see (its own earlier one,
       # else main's); saves under this request's scope, one entry per
-      # head commit, older ones purged (purging is scoped too, so main's
-      # entry is untouched). cache-cleanup.yml removes them all when the
-      # request closes.
+      # head commit. cache-cleanup.yml removes them all when the request
+      # closes. The cap of zero makes the pruning before the save remove
+      # every path the roots do not reach.
       - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
         if: steps.guard.outputs.build == 'true'
         with:
           primary-key: nix-${{ runner.os }}-${{ github.event.pull_request.head.sha }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
           gc-max-store-size-linux: 0
-          purge: true
-          purge-prefixes: nix-${{ runner.os }}-
-          purge-created: 0
-          purge-primary-key: never
+          purge: false
 
       - name: Run the flake checks
         if: steps.guard.outputs.build == 'true'
@@ -94,7 +94,10 @@ jobs:
           MAY_DELETE: "false"
         run: |
           set -euo pipefail
-          roots=/nix/var/nix/gcroots/ci
+          # The persistent root tree, under /nix but outside
+          # /nix/var/nix, which the cache action excludes apart from the
+          # database; mirrored into Nix's root directory at the end.
+          roots=/nix/ci-roots
 
           # 1. Root what this run built.
           own="$roots/$ROOT_CLASS/$ROOT_ID"
@@ -167,3 +170,8 @@ jobs:
           done
           echo "Kept roots:"
           printf '  %s\n' "${kept[@]}"
+
+          # 5. Mirror the surviving tree into Nix's root directory so the
+          #    pruning before the save honours it.
+          sudo rm -rf /nix/var/nix/gcroots/ci
+          sudo cp -a "$roots" /nix/var/nix/gcroots/ci

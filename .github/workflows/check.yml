@@ -1,74 +1,93 @@
 # SPDX-License-Identifier: MIT
 #
-# The trusted check: it runs on pushes to main and on pull requests,
-# and it is the run that reads and writes the build cache scoped to
-# main. A cold runner native-compiles the whole Emacs package set (the
-# better part of an hour); with the cache restored, a run builds only
-# what changed.
+# The trusted check: it runs on pushes to main and, for pull requests,
+# after the request's own check-pr run completes. It is the run that
+# reads and writes the build cache scoped to main. A cold runner
+# native-compiles the whole Emacs package set (the better part of an
+# hour); with the cache restored, a run builds only what changed.
 #
-# A pull request is checked through `pull_request_target`, so this file
-# is taken from main, not from the pull request. That is what makes the
-# cache safe to write from a pull request: the request cannot edit the
-# steps that decide whether to save. The one thing a request could use
-# to reach the runner's store outside Nix's sandbox is this pipeline
-# itself, so a request that touches .github/ gets no build here at all;
-# check-pr.yml builds it instead, under its own cache scope, which main
-# can never restore. Nothing else from the checkout runs outside Nix:
-# the only command from the tree is `nix flake check`, evaluation is
-# pure, and the sandbox stays on.
+# A pull request reaches this file through `workflow_run`, so the copy
+# that runs is main's and the run is in main's context, which is what
+# lets it write main's cache (a run in a request's context can only
+# read it). That is also what makes the write safe: the request cannot
+# edit the steps that decide whether to save. The one thing a request
+# could use to reach the runner's store outside Nix's sandbox is this
+# pipeline itself, so a request that touches .github/ gets no build
+# here; check-pr.yml builds it instead, under its own cache scope,
+# which main can never restore. Nothing else from the checkout runs
+# outside Nix: the only command from the tree is `nix flake check`,
+# evaluation is pure, and the sandbox stays on. The result is posted
+# to the request's head commit as the "check" status.
 #
 # One cache entry, holding a union of builds. What stays in it is
-# decided by garbage-collection roots kept inside the store tree, under
-# /nix/var/nix/gcroots/ci, so they travel with the cache: main/<sha>
-# for main's builds, pr/<number>/<sha> for requests'. Each run adds its
-# own, drops the lowest-priority roots until the closure fits the
-# repository's 10 GB of cache, and then every unreachable path goes.
-# The priority order, highest first: the current main; each open
-# request's newest build; older mains; closed requests. Requests that
-# changed the pipeline have entries of their own in their scope, which
-# this run only ever deletes, closed ones first, when space is short.
+# decided by garbage-collection roots kept in a tree the cache carries,
+# /nix/ci-roots, and mirrored into Nix's root directory before each
+# save: main/<sha> for main's builds, pr/<number>/<sha> for requests'.
+# Each run adds its own, drops the lowest-priority roots until the
+# closure fits the repository's 10 GB of cache, and then every
+# unreachable path goes. The priority order, highest first: the current
+# main; each open request's newest build; older mains; closed requests.
+# Requests that changed the pipeline have entries of their own in their
+# scope, which this run only ever deletes, closed ones first, when
+# space is short. Older entries in this scope are removed by a second
+# job, after the new entry is confirmed to exist, never before.
 
 name: check
 
 on:
   push:
     branches: [main]
-  pull_request_target:
+  workflow_run:
+    workflows: [check-pr]
+    types: [completed]
   workflow_dispatch:
 
-# Read-only on contents, including for pull_request_target, which would
-# otherwise get a write token. `actions: write` is for deleting cache
-# entries when the budget requires it.
+# `actions: write` deletes cache entries; `statuses: write` reports the
+# result on a request's head commit.
 permissions:
   contents: read
   pull-requests: read
   actions: write
+  statuses: write
 
 concurrency:
-  group: check-${{ github.event.pull_request.number || github.ref }}
+  group: check-${{ github.event.workflow_run.pull_requests[0].number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    # A workflow_run fires for check-pr on any event; only requests
+    # from this repository carry a pull request in the payload.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.pull_requests[0] != null
+    outputs:
+      built: ${{ steps.guard.outputs.build }}
     steps:
       - name: Decide whether this run builds
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
+          PR: ${{ github.event.workflow_run.pull_requests[0].number }}
+          HEAD: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
+          echo "head=$HEAD" >> "$GITHUB_OUTPUT"
           if [[ -z "$PR" ]]; then
             echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "base=$HEAD" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "base=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json baseRefOid --jq .baseRefOid)" >> "$GITHUB_OUTPUT"
           if gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate \
                --jq '.[].filename' | grep -q '^\.github/'; then
-            echo "This pull request changes the pipeline; check-pr.yml builds it."
+            echo "This pull request changes the pipeline; check-pr.yml built it."
             echo "build=false" >> "$GITHUB_OUTPUT"
+            gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD" -f state=success -f context=check \
+              -f description='Pipeline change: built by check-pr' > /dev/null
           else
             echo "build=true" >> "$GITHUB_OUTPUT"
+            gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD" -f state=pending -f context=check \
+              -f description='Building' > /dev/null
           fi
 
       # The pull request's head by SHA, never by branch name, so a push
@@ -76,7 +95,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         if: steps.guard.outputs.build == 'true'
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ steps.guard.outputs.head }}
           persist-credentials: false
 
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
@@ -87,20 +106,17 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = true
 
-      # Restores the newest entry, saves under this commit's key, purges
-      # the older entries after the save. The cap of zero makes the
-      # pruning before the save remove every path the roots do not
-      # reach, so the entry is exactly the closure of the roots.
+      # Restores the newest entry and saves under this commit's key. The
+      # cap of zero makes the pruning before the save remove every path
+      # the roots do not reach, so the entry is exactly their closure.
+      # Purging is left to the second job, which checks the save landed.
       - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
         if: steps.guard.outputs.build == 'true'
         with:
-          primary-key: nix-${{ runner.os }}-${{ github.event.pull_request.head.sha || github.sha }}
+          primary-key: nix-${{ runner.os }}-${{ steps.guard.outputs.head }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
           gc-max-store-size-linux: 0
-          purge: true
-          purge-prefixes: nix-${{ runner.os }}-
-          purge-created: 0
-          purge-primary-key: never
+          purge: false
 
       - name: Run the flake checks
         if: steps.guard.outputs.build == 'true'
@@ -110,17 +126,21 @@ jobs:
         if: steps.guard.outputs.build == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          # Where this run's roots go, and which main is current.
-          ROOT_CLASS: ${{ github.event.pull_request && 'pr' || 'main' }}
-          ROOT_ID: ${{ github.event.pull_request && format('{0}/{1}', github.event.pull_request.number, github.event.pull_request.head.sha) || github.sha }}
-          CURRENT_MAIN: ${{ github.event.pull_request.base.sha || github.sha }}
-          # This run's own cache scope, for the budget arithmetic.
+          ROOT_CLASS: ${{ github.event.workflow_run.pull_requests[0] && 'pr' || 'main' }}
+          ROOT_ID: ${{ github.event.workflow_run.pull_requests[0] && format('{0}/{1}', github.event.workflow_run.pull_requests[0].number, github.event.workflow_run.head_sha) || github.sha }}
+          CURRENT_MAIN: ${{ steps.guard.outputs.base }}
           OWN_REF: ${{ github.ref }}
           KEY_PREFIX: nix-${{ runner.os }}-
           MAY_DELETE: "true"
         run: |
           set -euo pipefail
-          roots=/nix/var/nix/gcroots/ci
+          # The persistent root tree. It lives under /nix so the cache
+          # carries it, but not under /nix/var/nix, which the cache
+          # action excludes from its archive apart from the database.
+          # Nix reads roots only from /nix/var/nix/gcroots, so the last
+          # step mirrors the surviving tree there before the save's
+          # pruning runs.
+          roots=/nix/ci-roots
 
           # 1. Root what this run built. The checks are already built,
           #    so this evaluates and links.
@@ -163,7 +183,7 @@ jobs:
           # 3. The budget: the repository's 10 GB, less the entries of
           #    requests that changed the pipeline (they live in their own
           #    scopes), less this scope's current entry, which coexists
-          #    with the new one until the purge after the save. Sizes
+          #    with the new one until the second job removes it. Sizes
           #    are compared as uncompressed closure sizes, which errs on
           #    the safe side since entries are compressed.
           gib=$((1024 * 1024 * 1024))
@@ -226,3 +246,48 @@ jobs:
           done
           echo "Kept roots:"
           printf '  %s\n' "${kept[@]}"
+
+          # 5. Mirror the surviving tree into Nix's root directory so the
+          #    pruning before the save honours it (symlinks stay symlinks).
+          sudo rm -rf /nix/var/nix/gcroots/ci
+          sudo cp -a "$roots" /nix/var/nix/gcroots/ci
+
+      - name: Report the result on the pull request
+        if: always() && github.event_name == 'workflow_run' && steps.guard.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ steps.guard.outputs.head }}
+          STATE: ${{ job.status == 'success' && 'success' || 'failure' }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD" -f state="$STATE" -f context=check \
+            -f description="Flake checks: $STATE" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > /dev/null
+
+  # Older entries in this scope go only once the new one is confirmed
+  # to exist. The cache action would purge regardless, and a save can
+  # fail (a denied token did, once), which would leave nothing behind.
+  prune:
+    needs: check
+    if: needs.check.result == 'success' && needs.check.outputs.built == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Remove the older entries in this scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEY: nix-${{ runner.os }}-${{ github.event.workflow_run.head_sha || github.sha }}
+          KEY_PREFIX: nix-${{ runner.os }}-
+          OWN_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          entries=$(gh cache list --repo "$GITHUB_REPOSITORY" --ref "$OWN_REF" --key "$KEY_PREFIX" --limit 100 --json id,key)
+          if ! jq -e --arg k "$KEY" 'any(.[]; .key == $k)' <<<"$entries" > /dev/null; then
+            echo "::warning::No entry with key $KEY exists; keeping the older entries."
+            exit 0
+          fi
+          for id in $(jq -r --arg k "$KEY" '.[] | select(.key != $k) | .id' <<<"$entries"); do
+            gh cache delete "$id" --repo "$GITHUB_REPOSITORY"
+            echo "Deleted cache entry $id."
+          done
