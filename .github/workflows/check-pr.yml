@@ -57,16 +57,22 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = true
 
-      # Restores main's newest entry; the save lands under this pull
-      # request's scope, one entry per head commit, older ones purged.
+      # Restores this request's own previous entry if it has one, else
+      # the newest entry in main's scope (a `pr-` build on top of main,
+      # or main's own). The save lands under this request's scope, one
+      # entry per head commit, older ones purged; cache-cleanup.yml
+      # removes them all when the request closes.
       - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
         if: steps.guard.outputs.build == 'true'
         with:
-          primary-key: nix-${{ runner.os }}-pr-${{ github.event.pull_request.head.sha }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
+          primary-key: nix-${{ runner.os }}-pipeline-${{ github.event.pull_request.head.sha }}
+          restore-prefixes-first-match: |
+            nix-${{ runner.os }}-pipeline-
+            nix-${{ runner.os }}-pr-
+            nix-${{ runner.os }}-main-
           gc-max-store-size-linux: 5G
           purge: true
-          purge-prefixes: nix-${{ runner.os }}-pr-
+          purge-prefixes: nix-${{ runner.os }}-pipeline-
           purge-created: 0
           purge-primary-key: never
 
