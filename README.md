@@ -60,9 +60,10 @@ recipe cannot rot.
 In CI the same `nix flake check` runs with the Nix store cached between
 runs, since a cold runner native-compiles the whole Emacs package set
 and takes most of an hour. A pull request that leaves `.github/` alone
-is checked by `main`'s copy of the workflow and adds its build to the
-shared cache; one that changes the pipeline is checked by its own copy,
-under a cache only it can see. The comments at the top of the two
+is checked by `main`'s copy of the workflow, in `main`'s context once
+its own check completes, and adds its build to the shared cache; one
+that changes the pipeline is checked by its own copy, under a cache
+only it can see. The comments at the top of the two
 workflow files say why that split is what makes the cache safe to write
 from a pull request.
 
