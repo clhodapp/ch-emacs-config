@@ -6,11 +6,16 @@
 # pipeline saves entries under its own merge ref, and those would sit
 # for seven days after the request closes. Dropping them at close time
 # keeps the total near one entry, so main's is never the one evicted.
+#
+# Triggered through `pull_request_target`, so the copy that runs is
+# main's: this job holds a token that can delete cache entries, and a
+# request must not be able to edit what it deletes. Nothing from the
+# request's tree runs here.
 
 name: cache-cleanup
 
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
 
 permissions:
