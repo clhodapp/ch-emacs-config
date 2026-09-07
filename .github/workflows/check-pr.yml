@@ -78,6 +78,14 @@ jobs:
           gc-max-store-size-linux: 0
           purge: false
 
+      # Pull from the clhodapp cache; a public cache needs no credentials
+      # to read, and this run has none. Nothing is pushed from here.
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        if: steps.guard.outputs.build == 'true'
+        with:
+          name: clhodapp
+          skipPush: true
+
       - name: Run the flake checks
         if: steps.guard.outputs.build == 'true'
         run: nix flake check --print-build-logs
