@@ -103,9 +103,13 @@ jobs:
           own="$roots/$ROOT_CLASS/$ROOT_ID"
           sudo rm -rf "$own"
           sudo mkdir -p "$own"
-          for name in $(nix eval --json '.#checks.x86_64-linux' --apply builtins.attrNames | jq -r '.[]'); do
-            out=$(nix build --no-link --print-out-paths ".#checks.x86_64-linux.$name")
-            sudo ln -s "$out" "$own/$name"
+          # Checks and packages both: a check's output need not reference
+          # what it built, and the pruning keeps only what the roots reach.
+          for kind in checks packages; do
+            for name in $(nix eval --json ".#$kind.x86_64-linux" --apply builtins.attrNames | jq -r '.[]'); do
+              out=$(nix build --no-link --print-out-paths ".#$kind.x86_64-linux.$name")
+              sudo ln -s "$out" "$own/$kind-$name"
+            done
           done
 
           # 2. Order every root directory, highest priority first.
