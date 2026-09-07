@@ -151,8 +151,6 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
             sandbox = true
-            extra-substituters = https://cache.numtide.com
-            extra-trusted-public-keys = niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=
 
       # Restores the newest entry and saves under this commit's key. The
       # cap of zero makes the pruning before the save remove every path
@@ -177,9 +175,8 @@ jobs:
           skipPush: true
           # The clhodapp cache's upstreams: cachix.org skips uploading
           # what they already hold, so a user of that cache pulls from
-          # them too. numtide's is not a cachix cache and is configured
-          # on the Nix installation above.
-          extraPullNames: nix-community
+          # them too.
+          extraPullNames: nix-community,numtide
 
       - name: Run the flake checks
         run: nix flake check --print-build-logs
