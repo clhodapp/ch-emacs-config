@@ -376,7 +376,9 @@ in
                            '((json-ts-mode js-json-mode)
                              . (${elispStrings languageServers.vscode-json-language-server.cmd})))
               (add-to-list 'eglot-server-programs
-                           '(mermaid-ts-mode . (${elispStrings languageServers.merman-lsp.cmd}))))
+                           '(mermaid-ts-mode . (${elispStrings languageServers.merman-lsp.cmd}))
+              (add-to-list 'eglot-server-programs
+                           '(bash-ts-mode . (${elispStrings languageServers.bash-language-server.cmd})))))
             (setq-default eglot-workspace-configuration
                           '${toElispPlist lspWorkspaceSettings})
           '';

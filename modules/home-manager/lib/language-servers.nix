@@ -93,4 +93,24 @@ in
       ".mermaid" = "mermaid";
     };
   };
+
+  # The server shells out for two of its features: shellcheck for
+  # diagnostics and shfmt for formatting. Both are looked up by the
+  # path in its own settings (default: bare names on PATH), so pin them
+  # there; nixpkgs' wrapper only suffixes PATH with shellcheck, which a
+  # different shellcheck earlier on PATH would shadow.
+  bash-language-server = {
+    cmd = [
+      (lib.getExe pkgs.bash-language-server)
+      "start"
+    ];
+    extensionToLanguage = {
+      ".sh" = "shellscript";
+      ".bash" = "shellscript";
+    };
+    settings.bashIde = {
+      shellcheckPath = lib.getExe pkgs.shellcheck;
+      shfmt.path = lib.getExe pkgs.shfmt;
+    };
+  };
 }
