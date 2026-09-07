@@ -63,9 +63,15 @@ permissions:
   actions: write
   statuses: write
 
+# Every run that writes main's cache entry (a push, or a dispatched
+# build of a request) waits for the previous one: two writers at once
+# each restore the same entry and the last save wins, dropping the
+# other's roots. The dispatch hop has its own group per request, so a
+# newer push to a request supersedes an older pending dispatch, and so
+# the hop is not cancelled by the very build it started.
 concurrency:
-  group: check-${{ inputs.pr || github.event.workflow_run.pull_requests[0].number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.event_name == 'workflow_run' && format('dispatch-{0}', github.event.workflow_run.pull_requests[0].number) || 'cache-writer' }}
+  cancel-in-progress: ${{ github.event_name == 'workflow_run' }}
 
 jobs:
   # The first hop for a pull request: guard, then dispatch the builder.
