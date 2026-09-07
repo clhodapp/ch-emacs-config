@@ -103,6 +103,12 @@ jobs:
     if: github.event_name != 'workflow_run'
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    # The cachix credentials live in this environment, whose deployment
+    # branch policy admits only runs on main: a push, or the dispatched
+    # build of a request. A request's own workflow copy cannot reach
+    # them whatever it says, which is what keeps the rule "only main
+    # pushes to the cache" out of the files a request can edit.
+    environment: cachix
     outputs:
       head: ${{ steps.target.outputs.head }}
     steps:
@@ -156,6 +162,17 @@ jobs:
           restore-prefixes-first-match: nix-${{ runner.os }}-
           gc-max-store-size-linux: 0
           purge: false
+
+      # Configures the clhodapp cache as a substituter and installs the
+      # cachix command. Pushing is left to the explicit step at the end:
+      # the action's own push covers only paths built in this run, and
+      # a warm run builds nothing.
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: clhodapp
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          signingKey: ${{ secrets.CACHIX_SIGNING_KEY }}
+          skipPush: true
 
       - name: Run the flake checks
         run: nix flake check --print-build-logs
@@ -293,6 +310,13 @@ jobs:
           #    pruning before the save honours it (symlinks stay symlinks).
           sudo rm -rf /nix/var/nix/gcroots/ci
           sudo cp -a "$roots" /nix/var/nix/gcroots/ci
+
+      # What main's cache entry holds is what hosts and consumers may
+      # pull: the closure of the surviving roots, signed with the key
+      # from the environment. Paths the cache already has are skipped.
+      - name: Push the kept closure to the clhodapp cache
+        run: |
+          find /nix/ci-roots -type l -exec readlink {} + | sort -u | xargs cachix push clhodapp
 
       - name: Report the result on the pull request
         if: always() && inputs.pr != ''
