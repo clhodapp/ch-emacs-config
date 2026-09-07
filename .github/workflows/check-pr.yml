@@ -67,7 +67,9 @@ jobs:
         with:
           primary-key: nix-${{ runner.os }}-${{ github.event.pull_request.head.sha }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size-linux: 5G
+          # Zero: free every unreachable path, so the entry is exactly the
+          # closure of the roots below.
+          gc-max-store-size-linux: 0
           purge: true
           purge-prefixes: nix-${{ runner.os }}-
           purge-created: 0
