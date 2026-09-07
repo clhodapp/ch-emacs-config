@@ -1,23 +1,27 @@
 # SPDX-License-Identifier: MIT
 #
 # The trusted check: it runs on pushes to main and, for pull requests,
-# after the request's own check-pr run completes. It is the run that
+# as a dispatched run carrying the request's head. It is the run that
 # reads and writes the build cache scoped to main. A cold runner
 # native-compiles the whole Emacs package set (the better part of an
 # hour); with the cache restored, a run builds only what changed.
 #
-# A pull request reaches this file through `workflow_run`, so the copy
-# that runs is main's and the run is in main's context, which is what
-# lets it write main's cache (a run in a request's context can only
-# read it). That is also what makes the write safe: the request cannot
-# edit the steps that decide whether to save. The one thing a request
-# could use to reach the runner's store outside Nix's sandbox is this
-# pipeline itself, so a request that touches .github/ gets no build
-# here; check-pr.yml builds it instead, under its own cache scope,
-# which main can never restore. Nothing else from the checkout runs
-# outside Nix: the only command from the tree is `nix flake check`,
-# evaluation is pure, and the sandbox stays on. The result is posted
-# to the request's head commit as the "check" status.
+# Only a few triggers may write the cache in main's scope (push,
+# workflow_dispatch, repository_dispatch, schedule and a few more); a
+# run reached through workflow_run or pull_request_target gets a
+# read-only cache token even in main's context. So a pull request takes
+# two hops, both executing main's copy of this file: the `dispatch` job
+# fires when the request's check-pr run completes, applies the guard,
+# and dispatches this workflow on main with the request's head SHA and
+# number as inputs; the `check` job then runs as a workflow_dispatch
+# with a writable token. The request cannot edit the guard, the inputs
+# name a commit rather than a branch, and the only command that runs
+# from the checkout is `nix flake check` (pure evaluation, sandboxed
+# builds). The one route from a request to the runner's store outside
+# the sandbox is this pipeline itself, so a request that touches
+# .github/ gets no build here; check-pr.yml builds it instead, under
+# its own cache scope, which main can never restore. The result is
+# posted to the request's head commit as the "check" status.
 #
 # One cache entry, holding a union of builds. What stays in it is
 # decided by garbage-collection roots kept in a tree the cache carries,
@@ -29,8 +33,8 @@
 # main; each open request's newest build; older mains; closed requests.
 # Requests that changed the pipeline have entries of their own in their
 # scope, which this run only ever deletes, closed ones first, when
-# space is short. Older entries in this scope are removed by a second
-# job, after the new entry is confirmed to exist, never before.
+# space is short. Older entries in this scope are removed by the
+# `prune` job, after the new entry is confirmed to exist, never before.
 
 name: check
 
@@ -41,9 +45,18 @@ on:
     workflows: [check-pr]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      head:
+        description: Commit to check (a pull request's head); main's own when empty
+        required: false
+        type: string
+      pr:
+        description: The pull request that head belongs to, if any
+        required: false
+        type: string
 
-# `actions: write` deletes cache entries; `statuses: write` reports the
-# result on a request's head commit.
+# `actions: write` dispatches this workflow and deletes cache entries;
+# `statuses: write` reports the result on a request's head commit.
 permissions:
   contents: read
   pull-requests: read
@@ -51,55 +64,76 @@ permissions:
   statuses: write
 
 concurrency:
-  group: check-${{ github.event.workflow_run.pull_requests[0].number || github.ref }}
+  group: check-${{ inputs.pr || github.event.workflow_run.pull_requests[0].number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  check:
+  # The first hop for a pull request: guard, then dispatch the builder.
+  # A workflow_run fires for check-pr on any event; only requests from
+  # this repository carry a pull request in the payload.
+  dispatch:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.pull_requests[0] != null
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-    # A workflow_run fires for check-pr on any event; only requests
-    # from this repository carry a pull request in the payload.
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.pull_requests[0] != null
-    outputs:
-      built: ${{ steps.guard.outputs.build }}
+    timeout-minutes: 5
     steps:
-      - name: Decide whether this run builds
-        id: guard
+      - name: Guard, then dispatch the trusted build
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.workflow_run.pull_requests[0].number }}
-          HEAD: ${{ github.event.workflow_run.head_sha || github.sha }}
+          HEAD: ${{ github.event.workflow_run.head_sha }}
         run: |
-          echo "head=$HEAD" >> "$GITHUB_OUTPUT"
-          if [[ -z "$PR" ]]; then
-            echo "build=true" >> "$GITHUB_OUTPUT"
-            echo "base=$HEAD" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "base=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json baseRefOid --jq .baseRefOid)" >> "$GITHUB_OUTPUT"
           if gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate \
                --jq '.[].filename' | grep -q '^\.github/'; then
             echo "This pull request changes the pipeline; check-pr.yml built it."
-            echo "build=false" >> "$GITHUB_OUTPUT"
             gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD" -f state=success -f context=check \
               -f description='Pipeline change: built by check-pr' > /dev/null
-          else
-            echo "build=true" >> "$GITHUB_OUTPUT"
-            gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD" -f state=pending -f context=check \
-              -f description='Building' > /dev/null
+            exit 0
           fi
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD" -f state=pending -f context=check \
+            -f description='Queued' > /dev/null
+          gh workflow run check.yml --repo "$GITHUB_REPOSITORY" --ref main -f "head=$HEAD" -f "pr=$PR"
 
-      # The pull request's head by SHA, never by branch name, so a push
-      # after the guard ran cannot swap the tree under it.
+  check:
+    if: github.event_name != 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      head: ${{ steps.target.outputs.head }}
+    steps:
+      - name: Resolve what to build
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ inputs.head || github.sha }}
+          PR: ${{ inputs.pr }}
+        run: |
+          if [[ -z "$PR" ]]; then
+            {
+              echo "head=$HEAD"
+              echo "class=main"
+              echo "id=$HEAD"
+              echo "base=$HEAD"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "head=$HEAD"
+            echo "class=pr"
+            echo "id=$PR/$HEAD"
+            echo "base=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json baseRefOid --jq .baseRefOid)"
+          } >> "$GITHUB_OUTPUT"
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD" -f state=pending -f context=check \
+            -f description='Building' \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > /dev/null
+
+      # By SHA, never by branch name, so a push after the guard ran
+      # cannot swap the tree under it.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        if: steps.guard.outputs.build == 'true'
         with:
-          ref: ${{ steps.guard.outputs.head }}
+          ref: ${{ steps.target.outputs.head }}
           persist-credentials: false
 
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
-        if: steps.guard.outputs.build == 'true'
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
           extra_nix_config: |
@@ -109,26 +143,23 @@ jobs:
       # Restores the newest entry and saves under this commit's key. The
       # cap of zero makes the pruning before the save remove every path
       # the roots do not reach, so the entry is exactly their closure.
-      # Purging is left to the second job, which checks the save landed.
+      # Purging is left to the `prune` job, which checks the save landed.
       - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
-        if: steps.guard.outputs.build == 'true'
         with:
-          primary-key: nix-${{ runner.os }}-${{ steps.guard.outputs.head }}
+          primary-key: nix-${{ runner.os }}-${{ steps.target.outputs.head }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
           gc-max-store-size-linux: 0
           purge: false
 
       - name: Run the flake checks
-        if: steps.guard.outputs.build == 'true'
         run: nix flake check --print-build-logs
 
       - name: Root this build and apply the cache priorities
-        if: steps.guard.outputs.build == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          ROOT_CLASS: ${{ github.event.workflow_run.pull_requests[0] && 'pr' || 'main' }}
-          ROOT_ID: ${{ github.event.workflow_run.pull_requests[0] && format('{0}/{1}', github.event.workflow_run.pull_requests[0].number, github.event.workflow_run.head_sha) || github.sha }}
-          CURRENT_MAIN: ${{ steps.guard.outputs.base }}
+          ROOT_CLASS: ${{ steps.target.outputs.class }}
+          ROOT_ID: ${{ steps.target.outputs.id }}
+          CURRENT_MAIN: ${{ steps.target.outputs.base }}
           OWN_REF: ${{ github.ref }}
           KEY_PREFIX: nix-${{ runner.os }}-
           MAY_DELETE: "true"
@@ -183,7 +214,7 @@ jobs:
           # 3. The budget: the repository's 10 GB, less the entries of
           #    requests that changed the pipeline (they live in their own
           #    scopes), less this scope's current entry, which coexists
-          #    with the new one until the second job removes it. Sizes
+          #    with the new one until the `prune` job removes it. Sizes
           #    are compared as uncompressed closure sizes, which errs on
           #    the safe side since entries are compressed.
           gib=$((1024 * 1024 * 1024))
@@ -253,10 +284,10 @@ jobs:
           sudo cp -a "$roots" /nix/var/nix/gcroots/ci
 
       - name: Report the result on the pull request
-        if: always() && github.event_name == 'workflow_run' && steps.guard.outputs.build == 'true'
+        if: always() && inputs.pr != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          HEAD: ${{ steps.guard.outputs.head }}
+          HEAD: ${{ steps.target.outputs.head }}
           STATE: ${{ job.status == 'success' && 'success' || 'failure' }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD" -f state="$STATE" -f context=check \
@@ -265,10 +296,10 @@ jobs:
 
   # Older entries in this scope go only once the new one is confirmed
   # to exist. The cache action would purge regardless, and a save can
-  # fail (a denied token did, once), which would leave nothing behind.
+  # fail (a read-only token did, twice), which would leave nothing.
   prune:
     needs: check
-    if: needs.check.result == 'success' && needs.check.outputs.built == 'true'
+    if: needs.check.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -277,7 +308,7 @@ jobs:
       - name: Remove the older entries in this scope
         env:
           GH_TOKEN: ${{ github.token }}
-          KEY: nix-${{ runner.os }}-${{ github.event.workflow_run.head_sha || github.sha }}
+          KEY: nix-${{ runner.os }}-${{ needs.check.outputs.head }}
           KEY_PREFIX: nix-${{ runner.os }}-
           OWN_REF: ${{ github.ref }}
         run: |
