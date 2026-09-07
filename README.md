@@ -67,6 +67,21 @@ only it can see. The comments at the top of the two
 workflow files say why that split is what makes the cache safe to write
 from a pull request.
 
+## Binary cache
+
+What `main` builds is pushed to the `clhodapp` cachix cache, signed with
+its key, so a consumer at the same pins substitutes the compiled package
+set instead of native-compiling it. That cache skips paths its upstreams
+already hold, so using it means using them too:
+
+| Substituter | Public key |
+|---|---|
+| `https://clhodapp.cachix.org` | `clhodapp.cachix.org-1:EW/0conxH0OQyo0o4ub/grdkFspholmQMSnQyj0vrZI=` |
+| `https://nix-community.cachix.org` | `nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=` |
+| `https://cache.numtide.com` | `niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=` |
+
+Add all three to `extra-substituters` and `extra-trusted-public-keys`.
+
 ## License
 
 MIT, see [`LICENSE`](LICENSE).

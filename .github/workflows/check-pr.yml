@@ -64,6 +64,8 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
             sandbox = true
+            extra-substituters = https://cache.numtide.com
+            extra-trusted-public-keys = niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=
 
       # Restores the newest entry this run can see (its own earlier one,
       # else main's); saves under this request's scope, one entry per
@@ -85,6 +87,9 @@ jobs:
         with:
           name: clhodapp
           skipPush: true
+          # The clhodapp cache's upstreams, which a user of it pulls
+          # from too; numtide's is configured on the Nix installation.
+          extraPullNames: nix-community
 
       - name: Run the flake checks
         if: steps.guard.outputs.build == 'true'
