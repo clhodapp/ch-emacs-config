@@ -41,6 +41,18 @@ when it recognizes a mermaid diagram type."
   :type '(repeat string)
   :group 'render-dwim)
 
+(defcustom render-dwim-plantuml-command '("plantuml")
+  "Command list prefix for the plantuml renderer.
+The SVG-on-stdout flags are appended."
+  :type '(repeat string)
+  :group 'render-dwim)
+
+(defcustom render-dwim-dot-command '("dot")
+  "Command list prefix for the graphviz renderer.
+The SVG output flags are appended."
+  :type '(repeat string)
+  :group 'render-dwim)
+
 (defcustom render-dwim-handlers
   '(("mermaid" . render-dwim--render-mermaid)
     ("plantuml" . render-dwim--render-plantuml)
@@ -133,7 +145,8 @@ in exactly one newline (the hash-parity normalization)."
   "Render graphviz SOURCE into the cache; return the SVG file name."
   (let ((out (render-dwim--cache-file source)))
     (unless (file-exists-p out)
-      (let ((result (render-dwim--run (list "dot" "-Tsvg" "-o" out)
+      (let ((result (render-dwim--run (append render-dwim-dot-command
+                                              (list "-Tsvg" "-o" out))
                                       source)))
         (unless (and (eql (car result) 0) (file-exists-p out))
           (when (file-exists-p out) (delete-file out))
@@ -145,12 +158,15 @@ in exactly one newline (the hash-parity normalization)."
   "Render plantuml SOURCE into the cache; return the SVG file name."
   (let ((out (render-dwim--cache-file source)))
     (unless (file-exists-p out)
-      (unless (executable-find "plantuml")
-        (user-error "render-dwim: plantuml not found on PATH"))
+      (unless (executable-find (car render-dwim-plantuml-command))
+        (user-error "render-dwim: %s not found on PATH"
+                    (car render-dwim-plantuml-command)))
       (with-temp-buffer
-        (let ((status (call-process-region source nil "plantuml"
-                                           nil (list t nil) nil
-                                           "-tsvg" "-pipe")))
+        (let ((status (apply #'call-process-region source nil
+                             (car render-dwim-plantuml-command)
+                             nil (list t nil) nil
+                             (append (cdr render-dwim-plantuml-command)
+                                     (list "-tsvg" "-pipe")))))
           (unless (and (eql status 0) (> (buffer-size) 0))
             (user-error "render-dwim: plantuml render failed (%s)"
                         status))

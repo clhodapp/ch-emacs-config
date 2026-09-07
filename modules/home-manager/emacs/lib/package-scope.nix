@@ -11,9 +11,20 @@
   # both layers rather than reimplementing this.
   extraOverrides ? [ ],
   localPackageOverlays ? [ ],
+  # Programs the init spawns, pinned into it as store paths: an attrset
+  # over the names in lib/executables.nix, each a package or null (leave
+  # that program to PATH). Unnamed entries take the table's defaults;
+  # merman has none, so an Emacs built without it resolves the mermaid
+  # tooling from PATH.
+  executables ? { },
 }:
 let
   version = emacsPackage.version or "0";
+  executablesLib = import ./executables.nix { inherit lib pkgs; };
+  pinnedInitContent = executablesLib.initContent {
+    inherit bundles;
+    executables = lib.mapAttrs (_: entry: entry.default) executablesLib.table // executables;
+  };
   emacsOverrides = lib.foldl' lib.composeExtensions (import ../../../../pkgs/emacs/overrides.nix {
     inherit lib pkgs sources;
   }) extraOverrides;
@@ -30,8 +41,10 @@ let
       epkgs
       pkgs
       version
-      extraInitContent
       ;
+    # The pins come last, after whatever the caller appended, as they do
+    # in the module.
+    extraInitContent = extraInitContent + "\n" + pinnedInitContent;
     epkgsToplevel = epkgs;
     bundleInitContent = bundleLib.initContent bundles;
     bundlePackages = bundleLib.packages bundles epkgs local;

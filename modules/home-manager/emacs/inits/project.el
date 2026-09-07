@@ -1,11 +1,23 @@
 ;; SPDX-License-Identifier: MIT
 ;; init project.el
 (declare-function ghostel-exec "ghostel")
+(defvar consult-ripgrep-args)
+
+(defun ch/project--ripgrep-program ()
+  "The program `consult-ripgrep' would run, or nil if it is not there.
+That is the first word of `consult-ripgrep-args', which the pinned
+init points at a store path; a bare \"rg\" is looked up on
+`exec-path'."
+  (require 'consult)
+  (let ((program (if (stringp consult-ripgrep-args)
+                     (car (split-string consult-ripgrep-args))
+                   (car consult-ripgrep-args))))
+    (and (stringp program) (executable-find program))))
 
 (defun ch/project-grep ()
   "Grep the current project, with ripgrep when available."
   (interactive)
-  (if (executable-find "rg")
+  (if (ch/project--ripgrep-program)
       (consult-ripgrep)
     (consult-grep)))
 

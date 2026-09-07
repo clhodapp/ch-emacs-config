@@ -68,31 +68,24 @@ let
 
   daemonBundleEnabled = bundles.daemon.enable or false;
 
-  eglotBundleEnabled = bundles.eglot.enable or false;
-
-  # Shared server table (argv, extensions, settings) — the emacs-side
-  # facts (major-mode wiring, languageId pins) stay in the init below.
-  languageServers = import ../lib/language-servers.nix pkgs { inherit merman; };
-
-  # Render an argv as elisp string literals for an eglot-server-programs
-  # contact list.
-  elispStrings = lib.concatMapStringsSep " " (s: ''"${s}"'');
-
-  # Render the table's workspace settings as an eglot plist: attrsets
-  # become plists, lists become vectors (JSON arrays), everything else
-  # is a string.  The table's settings hold nothing but those shapes.
-  toElispPlist =
-    v:
-    if lib.isAttrs v then
-      "(" + lib.concatStringsSep " " (lib.mapAttrsToList (k: v': ":${k} ${toElispPlist v'}") v) + ")"
-    else if lib.isList v then
-      "[" + lib.concatMapStringsSep " " toElispPlist v + "]"
-    else
-      ''"${v}"'';
-
-  lspWorkspaceSettings = lib.foldl' lib.recursiveUpdate { } (
-    map (s: s.settings or { }) (lib.attrValues languageServers)
-  );
+  # The programs the init spawns (git, ripgrep, the language servers,
+  # ...) and the init lines pinning each to a store path; the option
+  # below exposes the table so a consumer can substitute a package or
+  # leave a program to PATH.
+  executablesLib = import ./lib/executables.nix { inherit lib pkgs; };
+  executablesTable = executablesLib.table // {
+    # Taken from the flake input rather than `pkgs`: this module is
+    # evaluated against the consumer's package set, which carries no
+    # overlay of ours.
+    merman = executablesLib.table.merman // {
+      default = closure-inputs.merman.packages.${pkgs.stdenv.hostPlatform.system}.merman;
+      defaultText = "the merman package of this flake's `merman` input";
+    };
+  };
+  pinnedInitContent = executablesLib.initContent {
+    inherit bundles;
+    executables = cfg.executables;
+  };
 
   jinxBundleEnabled = bundles.jinx.enable or false;
 
@@ -101,17 +94,6 @@ let
   jinxDeclaredWords = pkgs.writeText "jinx-declared-words" (
     lib.concatMapStrings (word: word + "\n") (lib.unique cfg.jinxPersonalWords)
   );
-
-  # Headless mermaid renderer for mermaid-preview; the merman language
-  # server itself is spawned via the shared table above (same drv).
-  # Taken from the flake input rather than `pkgs`: this module is
-  # evaluated against the consumer's package set, which carries no
-  # overlay of ours.
-  merman = closure-inputs.merman.packages.${pkgs.stdenv.hostPlatform.system}.merman;
-
-  mermaidTsModeBundleEnabled = bundles.mermaid-ts-mode.enable or false;
-
-  renderDwimBundleEnabled = bundles.render-dwim.enable or false;
 
   consultGhBundleEnabled = bundles.consult-gh.enable or false;
 
@@ -294,6 +276,27 @@ in
       '';
     };
 
+    executables = lib.mkOption {
+      type = lib.types.submodule {
+        options = lib.mapAttrs (
+          _name: entry:
+          lib.mkOption {
+            type = lib.types.nullOr lib.types.package;
+            inherit (entry) default description;
+            defaultText = lib.literalExpression entry.defaultText;
+          }
+        ) executablesTable;
+      };
+      default = { };
+      description = ''
+        The programs the init spawns, pinned into it as store paths so
+        the editor runs the same on a host that has none of them (the
+        language servers are pinned the same way, from the shared server
+        table). Set one to null to leave that program to PATH at run
+        time; the README lists what a host must then provide.
+      '';
+    };
+
     bundles = lib.mkOption {
       type = lib.types.attrsOf (lib.types.submodule ./bundle-module.nix);
       default = { };
@@ -331,10 +334,10 @@ in
           };
         }
         (lib.mkIf consultGhBundleEnabled {
-          # Emacs resolves gh through the packages-deps profile (nixpkgs
-          # consult-gh propagates it); this profile copy serves shells
-          # and other gh consumers outside the workspace devshell.
-          home.packages = [ pkgs.gh ];
+          # Emacs finds gh through the pin in the init; this profile copy
+          # of the same package serves shells and other gh consumers
+          # outside the workspace devshell.
+          home.packages = lib.optional (cfg.executables.gh != null) cfg.executables.gh;
         })
         (lib.mkIf jinxBundleEnabled {
           # Enchant scans its per-user config dir for hunspell dictionaries,
@@ -355,53 +358,9 @@ in
             '';
           };
         })
-        (lib.mkIf eglotBundleEnabled {
-          ch-emacs-config.emacs.extraInitContent = lib.mkAfter ''
-            ;; Language servers from the shared table (../lib/language-servers.nix),
-            ;; store-pinned for GUI Emacs sessions without HM PATH.
-            ;; Prepended entries win over eglot's built-in server table.
-            (with-eval-after-load 'eglot
-              (add-to-list 'eglot-server-programs
-                           '(nix-ts-mode . (${elispStrings languageServers.nil.cmd})))
-              (add-to-list 'eglot-server-programs
-                           '(python-base-mode . (${elispStrings languageServers.ty-ruff.cmd})))
-              (add-to-list 'eglot-server-programs
-                           '(markdown-ts-mode . (${elispStrings languageServers.marksman.cmd})))
-              (add-to-list 'eglot-server-programs
-                           '(((js-base-mode :language-id "javascript")
-                              (tsx-ts-mode :language-id "typescriptreact")
-                              (typescript-ts-mode :language-id "typescript"))
-                             . (${elispStrings languageServers.typescript-language-server.cmd})))
-              (add-to-list 'eglot-server-programs
-                           '((json-ts-mode js-json-mode)
-                             . (${elispStrings languageServers.vscode-json-language-server.cmd})))
-              (add-to-list 'eglot-server-programs
-                           '(mermaid-ts-mode . (${elispStrings languageServers.merman-lsp.cmd}))
-              (add-to-list 'eglot-server-programs
-                           '(bash-ts-mode . (${elispStrings languageServers.bash-language-server.cmd})))))
-            (setq-default eglot-workspace-configuration
-                          '${toElispPlist lspWorkspaceSettings})
-          '';
+        (lib.mkIf (pinnedInitContent != "") {
+          ch-emacs-config.emacs.extraInitContent = lib.mkAfter pinnedInitContent;
         })
-        (lib.mkIf mermaidTsModeBundleEnabled {
-          ch-emacs-config.emacs.extraInitContent = lib.mkAfter ''
-            ;; Nix-baked headless renderer path for mermaid-preview.
-            (use-package mermaid-preview
-              :demand t
-              :config
-              (setq mermaid-preview-command (list "${lib.getExe merman}" "mmdc")))
-          '';
-        })
-        (lib.mkIf renderDwimBundleEnabled ({
-          ch-emacs-config.emacs.extraInitContent = lib.mkAfter ''
-            ;; Nix-baked renderer and detector paths for render-dwim.
-            (use-package render-dwim
-              :demand t
-              :config
-              (setq render-dwim-mermaid-command (list "${lib.getExe merman}" "mmdc"))
-              (setq render-dwim-detect-command (list "${lib.getExe merman}" "detect")))
-          '';
-        }))
         (lib.mkIf daemonBundleEnabled {
           # The launchers live in the profile so the desktop entry, pins,
           # and $EDITOR can reference them by stable path (rationale at
