@@ -18,9 +18,10 @@
 # pure, and the sandbox stays on.
 #
 # One cache entry, holding a union of builds. What stays in it is
-# decided by garbage-collection roots kept inside the store tree, under
-# /nix/var/nix/gcroots/ci, so they travel with the cache: main/<sha>
-# for main's builds, pr/<number>/<sha> for requests'. Each run adds its
+# decided by garbage-collection roots kept in a tree the cache carries,
+# /nix/ci-roots, and mirrored into Nix's root directory before each
+# save: main/<sha> for main's builds, pr/<number>/<sha> for requests'.
+# Each run adds its
 # own, drops the lowest-priority roots until the closure fits the
 # repository's 10 GB of cache, and then every unreachable path goes.
 # The priority order, highest first: the current main; each open
@@ -120,7 +121,13 @@ jobs:
           MAY_DELETE: "true"
         run: |
           set -euo pipefail
-          roots=/nix/var/nix/gcroots/ci
+          # The persistent root tree. It lives under /nix so the cache
+          # carries it, but not under /nix/var/nix, which the cache
+          # action excludes from its archive apart from the database.
+          # Nix reads roots only from /nix/var/nix/gcroots, so the last
+          # step mirrors the surviving tree there before the save's
+          # pruning runs.
+          roots=/nix/ci-roots
 
           # 1. Root what this run built. The checks are already built,
           #    so this evaluates and links.
@@ -226,3 +233,8 @@ jobs:
           done
           echo "Kept roots:"
           printf '  %s\n' "${kept[@]}"
+
+          # 5. Mirror the surviving tree into Nix's root directory so the
+          #    pruning before the save honours it (symlinks stay symlinks).
+          sudo rm -rf /nix/var/nix/gcroots/ci
+          sudo cp -a "$roots" /nix/var/nix/gcroots/ci

@@ -94,7 +94,10 @@ jobs:
           MAY_DELETE: "false"
         run: |
           set -euo pipefail
-          roots=/nix/var/nix/gcroots/ci
+          # The persistent root tree, under /nix but outside
+          # /nix/var/nix, which the cache action excludes apart from the
+          # database; mirrored into Nix's root directory at the end.
+          roots=/nix/ci-roots
 
           # 1. Root what this run built.
           own="$roots/$ROOT_CLASS/$ROOT_ID"
@@ -167,3 +170,8 @@ jobs:
           done
           echo "Kept roots:"
           printf '  %s\n' "${kept[@]}"
+
+          # 5. Mirror the surviving tree into Nix's root directory so the
+          #    pruning before the save honours it.
+          sudo rm -rf /nix/var/nix/gcroots/ci
+          sudo cp -a "$roots" /nix/var/nix/gcroots/ci
