@@ -188,6 +188,26 @@
                 [[ -e "$sockdir/server" ]]
                 touch $out
               '';
+            # Last-frame gate: a tainted daemon asks before its last client
+            # frame is deleted on every close path (direct `delete-frame',
+            # the window-manager close event, C-x C-c on a nowait frame),
+            # keeps the frame when declined, stays silent for a non-last
+            # frame, and drains once the last frame is confirmed away.  The
+            # gate is an advice on the `delete-frame' primitive reached from
+            # native-compiled frame.el and server.el, so this also alarms if
+            # an Emacs bump breaks advice on primitives for native callers.
+            # Real tty client frames come from tests/pty-run.py.
+            mkLastFrameGateCheck =
+              name: emacsPackage:
+              pkgs.runCommand "${name}-last-frame-gate" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+                export HOME="$TMPDIR/home"
+                export XDG_RUNTIME_DIR="$TMPDIR/run"
+                mkdir -p "$HOME"
+                mkdir -p -m 700 "$XDG_RUNTIME_DIR"
+                EMACS=${emacsPackage}/bin/emacs EMACSCLIENT=${emacsPackage}/bin/emacsclient \
+                  bash ${emacsTestsSrc}/daemon-last-frame-gate.sh ${daemonInitSrc}
+                touch $out
+              '';
             # Evaluate the home-manager module end to end: option types, the
             # programs.emacs wiring, bundle-conditional home.packages, and
             # the mcp stdio bridge all get forced by the activation package.
@@ -240,6 +260,8 @@
                     pkgs.ch-emacs-config.emacs-pgtk;
                 emacs-drain-custody = mkDrainCustodyCheck "emacs" pkgs.ch-emacs-config.emacs;
                 emacs-pgtk-drain-custody = mkDrainCustodyCheck "emacs-pgtk" pkgs.ch-emacs-config.emacs-pgtk;
+                emacs-last-frame-gate = mkLastFrameGateCheck "emacs" pkgs.ch-emacs-config.emacs;
+                emacs-pgtk-last-frame-gate = mkLastFrameGateCheck "emacs-pgtk" pkgs.ch-emacs-config.emacs-pgtk;
                 emacs-home-manager-module = emacsHomeManagerConfiguration.activationPackage;
                 # A bundle defined through the option under a name the spec
                 # lacks reaches the built init. The resolver once walked

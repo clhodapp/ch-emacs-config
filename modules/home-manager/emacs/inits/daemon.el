@@ -31,7 +31,9 @@
 ;;    (every ghostel shell, language servers) blocks it forever
 ;;  - closing its last frame shows a notice — naming any unsaved
 ;;    file-visiting buffers and any terminals running a job, both of
-;;    which the drain exit discards — and offers Cancel
+;;    which the drain exit discards — and offers Cancel.  The notice is
+;;    an advice on `delete-frame', the one call every close path ends
+;;    at (see ch-emacs-config-daemon--confirm-delete-frame)
 
 (require 'server)
 
@@ -40,6 +42,23 @@
 
 (defvar ch-emacs-config-daemon--drain-timer nil
   "Timer that exits a tainted daemon once it has drained.")
+
+(defun ch-emacs-config-daemon--client-frame-p (frame)
+  "Whether FRAME is a top-level emacsclient frame.
+Child frames are excluded: `frame-inherited-parameters' carries
+`client', so a popup child frame (completion, tooltips) made inside a
+client frame inherits the parameter, yet it dies with its parent and
+is not something the user closes."
+  (and (frame-parameter frame 'client)
+       (not (frame-parent frame))))
+
+(defun ch-emacs-config-daemon--last-client-frame-p (frame)
+  "Whether FRAME is this daemon's only client frame."
+  (and (ch-emacs-config-daemon--client-frame-p frame)
+       (not (seq-some (lambda (f)
+                        (and (not (eq f frame))
+                             (ch-emacs-config-daemon--client-frame-p f)))
+                      (frame-list)))))
 
 (defun ch-emacs-config-daemon--drain-p ()
   "Whether this tainted daemon has nothing left worth staying alive for.
@@ -50,8 +69,7 @@ do not keep the daemon alive: the user decides when it dies by closing
 the last frame, and the last-frame-close prompt names what that
 discards so they can cancel.  A frameless daemon kept alive by any of
 those is a leak nothing can connect to."
-  (not (seq-some (lambda (f) (frame-parameter f 'client))
-                 (frame-list))))
+  (not (seq-some #'ch-emacs-config-daemon--client-frame-p (frame-list))))
 
 (defun ch-emacs-config-daemon--drain-check ()
   "Exit a tainted daemon once `ch-emacs-config-daemon--drain-p' holds."
@@ -117,42 +135,31 @@ exit, discarding %s.  Really close? "
       "This Emacs daemon is from an old generation and will exit.  \
 Really close? ")))
 
-(defun ch-emacs-config-daemon--last-frame-query ()
-  "Warn before closing when this is the last frame of a tainted daemon.
-Covers \\[save-buffers-kill-terminal]-style exits, which go through
-`kill-emacs-query-functions'."
-  (if (and ch-emacs-config-daemon--tainted
-           (daemonp)
-           ;; Only intervene when this is truly the last client frame.
-           ;; `server-done' already closed the current frame by the time
-           ;; kill-emacs-query-functions fires on daemon exit, so count
-           ;; all visible + iconified frames.
-           (<= (length (frame-list)) 1))
-      (yes-or-no-p (ch-emacs-config-daemon--last-frame-prompt))
-    t))
+(defun ch-emacs-config-daemon--confirm-delete-frame (orig &optional frame force)
+  "Ask before deleting a tainted daemon's last client frame.
+Every way the user closes a frame ends at `delete-frame': the window
+manager's close button (`handle-delete-frame'), \\[delete-frame],
+evil's :q, and \\[save-buffers-kill-terminal] / :qa on a `nowait'
+frame (`server-save-buffers-kill-terminal' deletes the frame outright
+while the daemon's own initial frame keeps `frame-list' longer than
+one, so its `save-buffers-kill-emacs' branch is unreachable).  Gating
+here covers all of them at once.  Declining leaves the frame open;
+confirming deletes it, after which the drain timer exits the daemon.
 
-(defun ch-emacs-config-daemon--confirm-frame-close (orig event)
-  "Ask before the window manager closes a tainted daemon's last client frame.
-Frame deletion never goes through `kill-emacs', so the
-`kill-emacs-query-functions' warning cannot fire on the WM close
-button; this advice on `handle-delete-frame' is that path's gate.
-Declining leaves the frame open; confirming closes it, after which
-the drain timer exits the daemon."
-  (let ((frame (posn-window (event-start event))))
+Known gap: a blocking client (emacsclient without -n) closed with
+\\[save-buffers-kill-terminal] goes through `server-delete-client',
+which clears the frame's `client' parameter and tears the client down
+before deleting the frame, so that path is not gated and cannot be
+kept open."
+  (let ((frame (or frame (selected-frame))))
     (if (and ch-emacs-config-daemon--tainted
              (daemonp)
-             (framep frame)
-             (frame-parameter frame 'client)
-             (not (seq-some (lambda (f)
-                              (and (not (eq f frame))
-                                   (frame-parameter f 'client)))
-                            (frame-list))))
+             (frame-live-p frame)
+             (ch-emacs-config-daemon--last-client-frame-p frame))
         (when (yes-or-no-p (ch-emacs-config-daemon--last-frame-prompt))
-          (funcall orig event))
-      (funcall orig event))))
+          (funcall orig frame force))
+      (funcall orig frame force))))
 
 (when (daemonp)
-  (add-hook 'kill-emacs-query-functions
-            #'ch-emacs-config-daemon--last-frame-query)
-  (advice-add 'handle-delete-frame :around
-              #'ch-emacs-config-daemon--confirm-frame-close))
+  (advice-add 'delete-frame :around
+              #'ch-emacs-config-daemon--confirm-delete-frame))
