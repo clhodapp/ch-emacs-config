@@ -33,8 +33,22 @@ self: super: {
   # once upstream clamps the scale at 1.0.  `--replace-fail' means a source
   # change breaks the build rather than silently skipping the patch.
   #
-  # Only the native module is rebuilt, so `evil-ghostel' below still reads the
-  # unchanged `src' and `version'.
+  # A second carried fix, in the elisp this time: dakra/ghostel#676.
+  #
+  # Every mouse handler turns the event's pixel position into a terminal
+  # cell with `posn-col-row' and no USE-WINDOW argument, which divides by
+  # the frame's default character size.  A buffer-local font change
+  # (`text-scale-mode') leaves the reported grid correct but scales the sent
+  # column and row up by the same factor, so a program with mouse tracking
+  # (Claude Code, htop) acts on a cell to the right of and below the pointer.
+  # With USE-WINDOW the division uses the window's font.  That form drops
+  # the `line-spacing' term from the row division; nothing here sets
+  # `line-spacing', so for this configuration it is the whole fix (the fix
+  # proposed upstream keeps the spacing).  Drop the `postPatch' once the
+  # pinned overlay carries the upstream fix.
+  #
+  # Neither patch touches `src' or `version', so `evil-ghostel' below still
+  # builds from the unpatched source; it has no `posn-col-row' call.
   ghostel =
     let
       patchedModule = super.ghostel.module.overrideAttrs (old: {
@@ -47,6 +61,10 @@ self: super: {
       });
     in
     super.ghostel.overrideAttrs (old: {
+      postPatch = (old.postPatch or "") + ''
+        substituteInPlace lisp/ghostel.el \
+          --replace-fail '(posn-col-row posn))' '(posn-col-row posn t))'
+      '';
       preBuild = ''
         install ${patchedModule}/ghostel-module.so ghostel-module.so
       '';
