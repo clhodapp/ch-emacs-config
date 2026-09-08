@@ -32,6 +32,16 @@ exported as `languageServerTable`), which any other LSP client
 configured alongside this editor can read, so two clients on one
 project cannot disagree about how to spawn a server.
 
+**The programs it runs, closed over.** The init spawns more than
+Emacs: git for magit and the vc backend, ripgrep for the project grep,
+direnv for envrc, the GitHub CLI for consult-gh, plantuml and graphviz
+for diagram previews, merman for mermaid, and the language servers
+above. The built init names every one of them by its Nix store path
+(`modules/home-manager/emacs/lib/executables.nix` is the table), so
+the editor behaves the same on a host that has none of them installed,
+and the exported package is a working editor on its own. What the host
+still has to provide is listed under [Host requirements](#host-requirements).
+
 ## Use it
 
 ```nix
@@ -45,6 +55,43 @@ project cannot disagree about how to spawn a server.
 
 The flake also exports the Emacs packages it validates against
 (`emacs`, `emacs-pgtk`, `emacs-nox`) and an overlay carrying them.
+
+To try the configuration without installing anything, run the
+exported package; it carries the whole package set, the init, and
+every program the init spawns:
+
+```sh
+nix run 'github:clhodapp/ch-emacs-config#emacs'
+```
+
+Each pinned program is an option, `ch-emacs-config.emacs.executables.<name>`
+(`git`, `ripgrep`, `direnv`, `gh`, `plantuml`, `graphviz`, `merman`).
+Set one to another package to substitute it, or to `null` to leave
+that program to `PATH` at run time, in which case the host provides
+it.
+
+## Host requirements
+
+The pinned programs cover what the init runs itself. The host still
+provides:
+
+- A POSIX userland: coreutils, findutils, grep, sed, awk, and xargs.
+  dired lists with `ls`, the grep and find fallbacks in consult and
+  xref shell out to them, and Man-mode filters pages through sed and
+  awk.
+- `man` and its pages, for Man-mode and `consult-man`. A store-pinned
+  `man` would not know the host's page directories.
+- The login shell, which ghostel spawns from `$SHELL` (falling back to
+  `/bin/sh`).
+- `nix`, when an `.envrc` uses it: direnv is pinned, what the envrc
+  invokes is not.
+- Fonts: Hack Nerd Font for the default face, Noto Color Emoji and
+  Symbola for emoji.
+- Spell-check dictionaries. jinx checks through enchant, which reads
+  hunspell dictionaries from its own configuration directory; the
+  Home Manager module provisions `en_US` there, the bare package does
+  not.
+- Any program whose `executables` option was set to `null`.
 
 ## Development
 

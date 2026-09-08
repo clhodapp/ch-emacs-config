@@ -107,6 +107,8 @@
             emacsPackageSources = {
               inherit (inputs) pr-review;
             };
+            # merman: the mermaid renderer and language server, its own repo.
+            merman = inputs.merman.packages.${system}.merman;
             mkEmacsDefault =
               emacsPackage:
               import ../../../modules/home-manager/emacs/lib/package-scope.nix {
@@ -114,6 +116,10 @@
                 lib = pkgs.lib;
                 bundles = emacsBundleSpec;
                 sources = emacsPackageSources;
+                # The exported packages close over every program the
+                # init spawns; merman has no nixpkgs default, so it is
+                # named here.
+                executables = { inherit merman; };
               };
             emacsScope = mkEmacsDefault pkgs.ch-emacs-config.emacs;
             emacsPgtkScope = mkEmacsDefault pkgs.ch-emacs-config.emacs-pgtk;
@@ -124,8 +130,6 @@
               sources = emacsPackageSources;
               inherit emacsOverlayRev;
             };
-            # merman: the mermaid renderer and language server, its own repo.
-            merman = inputs.merman.packages.${system}.merman;
             markdownTableFixSrc = "${self}/modules/home-manager/emacs/packages/markdown-table-fix";
             renderDwimSrc = "${self}/modules/home-manager/emacs/packages/render-dwim";
             emacsTestsSrc = "${self}/modules/home-manager/emacs/tests";
