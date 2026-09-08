@@ -10,9 +10,12 @@
 #      native-compiled frame.el calling the advised primitive) keeps it
 #   3. declining C-x C-c on a nowait frame (`save-buffers-kill-terminal')
 #      keeps it
-#   4. deleting a frame that is not the last one never prompts
-#   5. confirming deletes the last frame
-#   6. the daemon then drains: its socket disappears
+#   4. declining C-x C-c on a blocking client's frame (the
+#      `server-delete-client' path) keeps the frame and the client
+#   5. deleting a frame that is not the last one never prompts
+#   6. confirming deletes the last frame, asking exactly once (the
+#      `server-delete-client' re-entry from `delete-frame' stays quiet)
+#   7. the daemon then drains: its socket disappears
 #
 # Usage: EMACS=... EMACSCLIENT=... daemon-last-frame-gate.sh <daemon.el>
 # Needs python3 on PATH (pty-run.py beside this script) and a short
@@ -58,12 +61,12 @@ wait_frames 2
 mv "$sockdir/server" "$sockdir/server-drain-test"
 sock="server-drain-test"
 ec '(ch-emacs-config-daemon-taint "server-drain-test")' >/dev/null
-ec '(progn (require (quote cl-lib)) (defvar ch-test-prompted nil) t)' >/dev/null
+ec '(progn (require (quote cl-lib)) (defvar ch-test-prompted nil) (defvar ch-test-prompts 0) t)' >/dev/null
 
 # The single client frame, and yes-or-no-p stubs that record being asked.
 frame='(seq-find (function ch-emacs-config-daemon--client-frame-p) (frame-list))'
 decline='(cl-letf (((symbol-function (quote yes-or-no-p)) (lambda (&rest _) (setq ch-test-prompted t) nil)))'
-confirm='(cl-letf (((symbol-function (quote yes-or-no-p)) (lambda (&rest _) (setq ch-test-prompted t) t)))'
+confirm='(cl-letf (((symbol-function (quote yes-or-no-p)) (lambda (&rest _) (cl-incf ch-test-prompts) t)))'
 never='(cl-letf (((symbol-function (quote yes-or-no-p)) (lambda (&rest _) (error "prompted for a non-last frame"))))'
 report='(list :prompted ch-test-prompted :frames (length (frame-list)))'
 
@@ -71,11 +74,13 @@ expect "decline delete-frame" "(:prompted t :frames 2)" \
   "$(ec "(progn (setq ch-test-prompted nil) $decline (delete-frame $frame)) $report)")"
 expect "decline handle-delete-frame" "(:prompted t :frames 2)" \
   "$(ec "(progn (setq ch-test-prompted nil) $decline (handle-delete-frame (list (quote delete-frame) (list $frame)))) $report)")"
-# A tty client is a process client; C-x C-c on it tears the client down
-# before the frame goes (the documented gap), so test the nowait branch by
-# relabelling the frame for the call and restoring the process after.
+# A tty client is a blocking (process) client.  Test the nowait branch of
+# save-buffers-kill-terminal by relabelling the frame for the call and
+# restoring the process after; then the blocking branch as it is.
 expect "decline save-buffers-kill-terminal (nowait)" "(:prompted t :frames 2)" \
   "$(ec "(progn (setq ch-test-prompted nil) (let* ((f $frame) (proc (frame-parameter f (quote client)))) (set-frame-parameter f (quote client) (quote nowait)) $decline (with-selected-frame f (save-buffers-kill-terminal))) (set-frame-parameter f (quote client) proc)) $report)")"
+expect "decline save-buffers-kill-terminal (blocking client)" "(:prompted t :frames 2 :client-alive t)" \
+  "$(ec "(progn (setq ch-test-prompted nil) $decline (with-selected-frame $frame (save-buffers-kill-terminal))) (list :prompted ch-test-prompted :frames (length (frame-list)) :client-alive (and (process-live-p (frame-parameter $frame (quote client))) t)))")"
 
 python3 "$here/pty-run.py" "$EMACSCLIENT" --socket-name="$sockdir/$sock" -t &
 wait_frames 3
@@ -83,8 +88,8 @@ expect "non-last frame closes silently" "(:frames 2)" \
   "$(ec "(progn $never (delete-frame (car (last (seq-filter (function ch-emacs-config-daemon--client-frame-p) (frame-list)))))) (list :frames (length (frame-list))))")"
 wait_frames 2
 
-expect "confirm delete-frame" "(:prompted t :frames 1)" \
-  "$(ec "(progn (setq ch-test-prompted nil) $confirm (delete-frame $frame)) $report)")"
+expect "confirm delete-frame, asked once" "(:prompts 1 :frames 1)" \
+  "$(ec "(progn (setq ch-test-prompts 0) $confirm (delete-frame $frame)) (list :prompts ch-test-prompts :frames (length (frame-list))))")"
 
 for _ in $(seq 300); do
   [[ -S "$sockdir/server-drain-test" ]] || break

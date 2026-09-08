@@ -32,8 +32,11 @@
 ;;  - closing its last frame shows a notice — naming any unsaved
 ;;    file-visiting buffers and any terminals running a job, both of
 ;;    which the drain exit discards — and offers Cancel.  The notice is
-;;    an advice on `delete-frame', the one call every close path ends
-;;    at (see ch-emacs-config-daemon--confirm-delete-frame)
+;;    an advice on `delete-frame', which every close path ends at, plus
+;;    one on `server-delete-client' for blocking clients, which tear
+;;    down before their frame goes (see
+;;    ch-emacs-config-daemon--confirm-delete-frame and
+;;    ch-emacs-config-daemon--confirm-delete-client)
 
 (require 'server)
 
@@ -146,11 +149,11 @@ one, so its `save-buffers-kill-emacs' branch is unreachable).  Gating
 here covers all of them at once.  Declining leaves the frame open;
 confirming deletes it, after which the drain timer exits the daemon.
 
-Known gap: a blocking client (emacsclient without -n) closed with
-\\[save-buffers-kill-terminal] goes through `server-delete-client',
-which clears the frame's `client' parameter and tears the client down
-before deleting the frame, so that path is not gated and cannot be
-kept open."
+A blocking client (emacsclient without -n) closed with
+\\[save-buffers-kill-terminal] or :qa! reaches `delete-frame' only
+from inside `server-delete-client', with the frame's `client'
+parameter already cleared; that path is gated by
+`ch-emacs-config-daemon--confirm-delete-client' instead."
   (let ((frame (or frame (selected-frame))))
     (if (and ch-emacs-config-daemon--tainted
              (daemonp)
@@ -160,6 +163,38 @@ kept open."
           (funcall orig frame force))
       (funcall orig frame force))))
 
+(defun ch-emacs-config-daemon--owns-last-client-frames-p (proc)
+  "Whether client PROC owns every client frame this daemon has left.
+Nil for a frameless client (an $EDITOR or --eval connection finishing
+is not a frame closing) and whenever another client still has a frame."
+  (let (mine others)
+    (dolist (f (frame-list))
+      (when (ch-emacs-config-daemon--client-frame-p f)
+        (if (eq (frame-parameter f 'client) proc)
+            (setq mine t)
+          (setq others t))))
+    (and mine (not others))))
+
+(defun ch-emacs-config-daemon--confirm-delete-client (orig proc &optional noframe)
+  "Ask before a tainted daemon drops the blocking client owning its last frame.
+\\[save-buffers-kill-terminal] and :qa! on a frame from a blocking
+client (a tty frame, or emacsclient -c without -n) call
+`server-delete-client', which clears each frame's `client' parameter
+and tears the connection down before deleting the frame, so the
+`delete-frame' gate cannot see or keep that frame.  This is the gate
+for that path.  NOFRAME non-nil means `delete-frame' is already
+deleting the client's last frame and has asked; do not ask twice."
+  (if (and ch-emacs-config-daemon--tainted
+           (daemonp)
+           (not noframe)
+           (processp proc)
+           (ch-emacs-config-daemon--owns-last-client-frames-p proc))
+      (when (yes-or-no-p (ch-emacs-config-daemon--last-frame-prompt))
+        (funcall orig proc noframe))
+    (funcall orig proc noframe)))
+
 (when (daemonp)
   (advice-add 'delete-frame :around
-              #'ch-emacs-config-daemon--confirm-delete-frame))
+              #'ch-emacs-config-daemon--confirm-delete-frame)
+  (advice-add 'server-delete-client :around
+              #'ch-emacs-config-daemon--confirm-delete-client))
