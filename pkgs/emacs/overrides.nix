@@ -33,6 +33,19 @@ self: super: {
   # once upstream clamps the scale at 1.0.  `--replace-fail' means a source
   # change breaks the build rather than silently skipping the patch.
   #
+  # The second patch is the horizontal counterpart, visible only under
+  # `text-scale-mode'.  When a fallback glyph claims a second column, the
+  # renderer reserves it with `(min-width (2))': two columns of the FRAME's
+  # default face, which a buffer-local text scale does not change.  At scale +2
+  # the cell is 14px, so two cells are 28px, but the reservation is 20px; the
+  # glyph's 23px of ink overruns it and Emacs advances by the ink, so the rest
+  # of that line lands 5px short of the column grid.  Frames whose glyph makes
+  # no claim land on the grid, and the line shifts as the spinner animates.
+  # The renderer already has the scaled width as `slot_width'; emit that in
+  # pixels, `(min-width ((PIXELS)))', so the reservation follows the scale.
+  # Measured: following text lands at exactly 2.00 columns at scales 0, +2 and
+  # +4 (was 1.64 and 1.65 columns).  Unfixed upstream as of 0.53.0.
+  #
   # Only the native module is rebuilt, so `evil-ghostel' below still reads the
   # unchanged `src' and `version'.
   ghostel =
@@ -43,6 +56,10 @@ self: super: {
             --replace-fail \
               'const computed_scale = @min(scale_width, @min(scale_ascent, scale_descent));' \
               'const computed_scale = @min(1.0, @min(scale_width, @min(scale_ascent, scale_descent)));'
+          substituteInPlace src/Renderer.zig \
+            --replace-fail \
+              'const min_width_spec = env.list(.{ s.@"min-width", env.list(.{char_width}) });' \
+              'const min_width_spec = env.list(.{ s.@"min-width", env.list(.{env.list(.{slot_width})}) });'
         '';
       });
     in
