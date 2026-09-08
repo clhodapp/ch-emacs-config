@@ -23,7 +23,7 @@
   (save-place-file (concat (getenv "XDG_DATA_HOME") "/Emacs/places"))
   (inhibit-startup-screen t)
   ;; Same-named files disambiguate by leading path segments
-  ;; (fleet/default.nix vs machines/default.nix), so finder narrowing
+  ;; (modules/default.nix vs configs/default.nix), so finder narrowing
   ;; can use directory words instead of opaque <2> suffixes.
   (uniquify-buffer-name-style 'forward)
 
