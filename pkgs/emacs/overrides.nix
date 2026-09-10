@@ -46,7 +46,7 @@ self: super: {
   # Measured: following text lands at exactly 2.00 columns at scales 0, +2 and
   # +4 (was 1.64 and 1.65 columns).  Unfixed upstream as of 0.53.0.
   #
-  # The third patch is in the elisp: dakra/ghostel#676.
+  # The third change is in the elisp: dakra/ghostel#676.
   #
   # Every mouse handler turns the event's pixel position into a terminal
   # cell with `posn-col-row' and no USE-WINDOW argument, which divides by
@@ -54,40 +54,45 @@ self: super: {
   # (`text-scale-mode') leaves the reported grid correct but scales the sent
   # column and row up by the same factor, so a program with mouse tracking
   # (Claude Code, htop) acts on a cell to the right of and below the pointer.
-  # With USE-WINDOW the division uses the window's font.  That form drops
-  # the `line-spacing' term from the row division; nothing here sets
-  # `line-spacing', so for this configuration it is the whole fix (the fix
-  # proposed upstream keeps the spacing).  Drop the `postPatch' once the
-  # pinned overlay carries the upstream fix.
+  # The fix (a helper dividing by the window's own font width and line
+  # height) is on the fork branch behind the upstream pull request, so the
+  # `ghostel' flake input pins that branch and replaces the package source
+  # here: elisp and native module alike build from it.  nixpkgs stays the
+  # source of the build recipe.  Drop the input and the `version' and `src'
+  # overrides once the pinned nixpkgs ghostel carries the fix.
   #
-  # None of the three patches touches `src' or `version', so `evil-ghostel'
-  # below still builds from the unpatched source; it has no `posn-col-row'
-  # call.
+  # The fork tip is upstream 0.53.0 plus the one elisp commit, so the version
+  # follows it rather than nixpkgs' 0.52.0.  The zig dependency set is the
+  # same as 0.52.0's, so nixpkgs' `zigDeps' hash still holds; a fork bump
+  # that changes the dependencies fails that fixed-output derivation with
+  # the new hash, which then goes in a `zigDeps = old.zig.fetchDeps { ... }'
+  # override beside `src'.
+  #
+  # `evil-ghostel' below builds from `self.ghostel.src', so it follows the
+  # fork too; the fork does not touch it.
   ghostel =
     let
-      patchedModule = super.ghostel.module.overrideAttrs (old: {
-        postPatch = (old.postPatch or "") + ''
-          substituteInPlace src/Renderer.zig \
-            --replace-fail \
-              'const computed_scale = @min(scale_width, @min(scale_ascent, scale_descent));' \
-              'const computed_scale = @min(1.0, @min(scale_width, @min(scale_ascent, scale_descent)));'
-          substituteInPlace src/Renderer.zig \
-            --replace-fail \
-              'const min_width_spec = env.list(.{ s.@"min-width", env.list(.{char_width}) });' \
-              'const min_width_spec = env.list(.{ s.@"min-width", env.list(.{env.list(.{slot_width})}) });'
-        '';
-      });
+      forkDate = sources.ghostel.lastModifiedDate;
+      forkVersion = "0.53.0-unstable-${lib.substring 0 4 forkDate}-${lib.substring 4 2 forkDate}-${lib.substring 6 2 forkDate}";
     in
     super.ghostel.overrideAttrs (old: {
-      postPatch = (old.postPatch or "") + ''
-        substituteInPlace lisp/ghostel.el \
-          --replace-fail '(posn-col-row posn))' '(posn-col-row posn t))'
-      '';
-      preBuild = ''
-        install ${patchedModule}/ghostel-module.so ghostel-module.so
-      '';
-      passthru = (old.passthru or { }) // {
-        module = patchedModule;
+      version = forkVersion;
+      src = sources.ghostel;
+      passthru = old.passthru // {
+        # nixpkgs' `preBuild' installs `finalPackage.module', so patching
+        # the module here is enough for the elisp package to ship it.
+        module = old.passthru.module.overrideAttrs (m: {
+          postPatch = (m.postPatch or "") + ''
+            substituteInPlace src/Renderer.zig \
+              --replace-fail \
+                'const computed_scale = @min(scale_width, @min(scale_ascent, scale_descent));' \
+                'const computed_scale = @min(1.0, @min(scale_width, @min(scale_ascent, scale_descent)));'
+            substituteInPlace src/Renderer.zig \
+              --replace-fail \
+                'const min_width_spec = env.list(.{ s.@"min-width", env.list(.{char_width}) });' \
+                'const min_width_spec = env.list(.{ s.@"min-width", env.list(.{env.list(.{slot_width})}) });'
+          '';
+        });
       };
     });
 

@@ -105,7 +105,7 @@
             emacsBundleSpec = import ../../../modules/home-manager/emacs/bundles/spec.nix;
             # Packages consumed as plain (non-flake) inputs; see pkgs/emacs/overrides.nix.
             emacsPackageSources = {
-              inherit (inputs) pr-review;
+              inherit (inputs) pr-review ghostel;
             };
             # merman: the mermaid renderer and language server, its own repo.
             merman = inputs.merman.packages.${system}.merman;
