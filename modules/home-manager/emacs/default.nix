@@ -11,7 +11,7 @@ let
   cfg = config.ch-emacs-config.emacs;
   # Packages consumed as plain (non-flake) inputs; see pkgs/emacs/overrides.nix.
   emacsPackageSources = {
-    inherit (closure-inputs) pr-review;
+    inherit (closure-inputs) pr-review ghostel;
   };
   bundleLib = import ./lib/bundles.nix { inherit lib; };
   resolveBundles = import ./lib/resolve-bundles.nix { inherit lib; };

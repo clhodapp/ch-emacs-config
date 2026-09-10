@@ -30,6 +30,12 @@
     # builds them into the Emacs package set.
     pr-review.url = "github:clhodapp/emacs-pr-review";
     pr-review.flake = false;
+    # ghostel from the fork branch behind dakra/ghostel#676 (mouse cells
+    # under text scaling), a secondary pin for that one package beside the
+    # nixpkgs/emacs-overlay primary; pkgs/emacs/overrides.nix explains it
+    # and names when it goes.
+    ghostel.url = "github:clhodapp/ghostel/fix/mouse-cell-under-text-scale";
+    ghostel.flake = false;
 
     # MELPA/ELPA package pins.
     emacs-overlay.url = "github:nix-community/emacs-overlay";

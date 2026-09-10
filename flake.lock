@@ -51,6 +51,23 @@
         "type": "github"
       }
     },
+    "ghostel": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789016926,
+        "narHash": "sha256-rpYKqiGL2hIwpqEsLHP3hLKXA0br3B+B5By7o69GmNw=",
+        "owner": "clhodapp",
+        "repo": "ghostel",
+        "rev": "8ddd575a49a8b16e665209bb564ea7e981dd8bb6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "clhodapp",
+        "ref": "fix/mouse-cell-under-text-scale",
+        "repo": "ghostel",
+        "type": "github"
+      }
+    },
     "merman": {
       "inputs": {
         "caisson": "caisson_2",
@@ -138,6 +155,7 @@
       "inputs": {
         "caisson": "caisson",
         "emacs-overlay": "emacs-overlay",
+        "ghostel": "ghostel",
         "merman": "merman",
         "nixpkgs": "nixpkgs_2",
         "pr-review": "pr-review"
