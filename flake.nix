@@ -54,8 +54,8 @@
 
         modules = lib: {
           flake = {
-            default = lib.caisson.mkFlakeModule ./modules/flake-parts/default;
-            emacs = lib.caisson.mkFlakeModule ./modules/flake-parts/emacs;
+            default = lib.caisson.flake-parts.mkModule ./modules/flake-parts/default;
+            emacs = lib.caisson.flake-parts.mkModule ./modules/flake-parts/emacs;
           };
           homeManager = import ./modules/home-manager {
             inherit lib;
@@ -63,9 +63,9 @@
         };
       };
     in
-    lib.caisson.mkFlake {
+    lib.caisson.flake-parts.mkConfiguration {
       name = "ch-emacs-config";
-      configModule = lib.caisson.mkFlakeModule ./configs/flake-parts/default;
+      configModule = lib.caisson.flake-parts.mkModule ./configs/flake-parts/default;
     };
 
 }
