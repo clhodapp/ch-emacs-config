@@ -26,6 +26,15 @@ caches, taskbar pins, and long-lived shells all capture what they saw at
 index time and never notice a profile switch, so a launcher with baked
 paths eventually drives a daemon that no longer exists.
 
+**Markdown without the formatting characters.**
+`markdown-hide-markup-mode` stops displaying the delimiters in a
+`markdown-ts-mode` buffer: a heading's leading hashes, emphasis markers,
+code-span backticks, link brackets and destinations. The characters stay
+in the buffer, so searching, moving over them, and saving are unchanged.
+The construct point is inside is shown again while point is in it, which
+keeps editing acting on text that is on screen. The mode is off by
+default and bound to `<leader> h`.
+
 **Language servers from a shared table.** The eglot configuration
 renders one table of servers (`modules/home-manager/lib/language-servers.nix`,
 exported as `languageServerTable`), which any other LSP client

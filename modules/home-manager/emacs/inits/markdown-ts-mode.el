@@ -12,4 +12,12 @@
   ;; Markdown's "compile": normalize the buffer's pipe tables.  Holds
   ;; the render/preview slot until a real preview mode is added.
   (evil-define-key 'motion markdown-ts-mode-map
-    (kbd "<leader> c") #'markdown-table-fix-dwim))
+    (kbd "<leader> c") #'markdown-table-fix-dwim)
+  ;; Hide the formatting characters on demand, per buffer.  It is off by
+  ;; default because hiding markup while editing costs more than it
+  ;; gives in a buffer being written rather than read.
+  (evil-define-key 'motion markdown-ts-mode-map
+    (kbd "<leader> h") #'markdown-hide-markup-mode))
+
+(use-package markdown-hide-markup
+  :commands (markdown-hide-markup-mode markdown-hide-markup-mode-maybe))

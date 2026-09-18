@@ -209,7 +209,10 @@ in
     packages =
       epkgs: local:
       (if builtins.compareVersions epkgs.emacs.version "31" < 0 then [ epkgs.markdown-ts-mode ] else [ ])
-      ++ [ local.markdown-table-fix ];
+      ++ [
+        local.markdown-hide-markup
+        local.markdown-table-fix
+      ];
   };
 
   mermaid-ts-mode = {

@@ -130,6 +130,7 @@
               sources = emacsPackageSources;
               inherit emacsOverlayRev;
             };
+            markdownHideMarkupSrc = "${self}/modules/home-manager/emacs/packages/markdown-hide-markup";
             markdownTableFixSrc = "${self}/modules/home-manager/emacs/packages/markdown-table-fix";
             renderDwimSrc = "${self}/modules/home-manager/emacs/packages/render-dwim";
             emacsTestsSrc = "${self}/modules/home-manager/emacs/tests";
@@ -298,6 +299,20 @@
                   ${emacsScope.emacs}/bin/emacs --batch \
                     -L ${markdownTableFixSrc} \
                     -l tests/markdown-table-fix-ert.el \
+                    -f ert-run-tests-batch-and-exit
+                  touch $out
+                '';
+                # What markdown-hide-markup hides and reveals, read off the
+                # `invisible' text property and the buffer's invisibility
+                # spec, which together decide what is displayed.  Real
+                # `markdown-ts-mode' and the markdown grammars are loaded,
+                # so a change to upstream's invisibility symbol or to the
+                # node types the reveal walks fails here.
+                markdown-hide-markup-ert = pkgs.runCommand "markdown-hide-markup-ert" { } ''
+                  export HOME="$TMPDIR"
+                  ${emacsScope.emacs}/bin/emacs --batch \
+                    -L ${markdownHideMarkupSrc} \
+                    -l tests/markdown-hide-markup-ert.el \
                     -f ert-run-tests-batch-and-exit
                   touch $out
                 '';

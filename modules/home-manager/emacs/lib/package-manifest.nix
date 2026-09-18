@@ -20,6 +20,7 @@ let
     "ch-emacs-config-default"
     "ch-evil-ghostel"
     "ghostel-funcs"
+    "markdown-hide-markup"
     "markdown-table-fix"
     "window-funcs"
   ];
