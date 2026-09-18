@@ -85,6 +85,22 @@ of this config's languages; .nix files would be invisible")
 (defvar ch/speedbar--outline-buffer nil
   "Source buffer the Outline display renders.")
 
+(defvar ch/speedbar--outline-followed nil
+  "Source position of the identifier the outline's point last followed to.
+Nil when no identifier has been followed to, which is also what a
+re-target to another buffer resets it to.")
+
+(defvar ch/speedbar--outline-preview-window nil
+  "Window the outline preview displays in, chosen on entering the tree.")
+
+(defvar ch/speedbar--outline-preview-restore nil
+  "State to put the preview window back to, as (BUFFER POINT START).
+Nil when there is nothing to restore, which is the state RET leaves
+behind after committing a jump.")
+
+(defvar ch/speedbar--outline-previewed nil
+  "Source position the preview last showed, so repeats cost nothing.")
+
 (defun ch/speedbar--toggle (flavor fill)
   "Toggle the speedbar side window as tree FLAVOR.
 A second toggle of the same flavor closes the window; a different
@@ -141,8 +157,10 @@ the speedbar is up."
 (defun ch/speedbar-outline-tree ()
   "Toggle a speedbar tree of the identifiers in the current buffer.
 The buffer's imenu structure (tree-sitter-backed in the ts modes)
-rendered as a collapsible tree; RET on an identifier jumps to its
-definition.  The outline re-targets as the selected buffer changes;
+rendered as a collapsible tree.  The tree's point tracks the
+identifier point is inside of; moving it in the tree previews that
+identifier in the window the tree was entered from, and RET commits
+the jump.  The outline re-targets as the selected buffer changes;
 gr refreshes it after edits."
   (interactive)
   (let ((buffer (current-buffer)))
@@ -150,6 +168,9 @@ gr refreshes it after edits."
                          (lambda ()
                            (ch/speedbar--outline-register)
                            (setq ch/speedbar--outline-buffer buffer)
+                           (setq ch/speedbar--outline-followed nil)
+                           (setq ch/speedbar--outline-previewed nil)
+                           (setq ch/speedbar--outline-preview-restore nil)
                            (ch/speedbar--show-display "Outline"
                                                       default-directory)))))
 
@@ -360,11 +381,15 @@ TEXT is the activated button's text ({+} or {-}), TOKEN is
     (speedbar-delete-subblock indent))))
 
 (defun ch/speedbar--outline-jump (_text token _indent)
-  "Jump to TOKEN's (POSITION . BUFFER) identifier definition."
+  "Jump to TOKEN's (POSITION . BUFFER) identifier definition.
+The preview the tree has been showing becomes the real position:
+the saved state is dropped so leaving the tree does not undo it."
   (let ((position (car token))
         (buffer (cdr token)))
     (if (not (buffer-live-p buffer))
         (message "The outline's buffer is gone")
+      (setq ch/speedbar--outline-preview-restore nil)
+      (setq ch/speedbar--outline-previewed nil)
       (pop-to-buffer buffer)
       (goto-char position)
       (recenter))))
@@ -380,8 +405,140 @@ outline is showing and a different file-visiting buffer is selected."
                  (buffer-file-name buffer)
                  (not (eq buffer ch/speedbar--outline-buffer)))
         (setq ch/speedbar--outline-buffer buffer)
+        (setq ch/speedbar--outline-followed nil)
         (with-current-buffer speedbar-buffer
           (speedbar-refresh))))))
+
+(defun ch/speedbar--outline-enclosing-line (source-position)
+  "Tree position of the identifier line enclosing SOURCE-POSITION.
+Returns a (TREE-POSITION . IDENTIFIER-POSITION) pair, or nil when
+no identifier line qualifies.  Runs in the speedbar buffer.
+Identifier lines carry (POSITION . BUFFER) as their speedbar token
+and group lines carry a list, so only identifiers match.  The lines
+are in buffer order, so the last one starting at or before
+SOURCE-POSITION is the innermost identifier containing it; a
+collapsed group contributes no lines, so the nearest visible
+ancestor is chosen instead."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((best nil)
+          (match nil))
+      (while (setq match (text-property-search-forward 'speedbar-token))
+        (let ((token (prop-match-value match)))
+          (when (and (consp token)
+                     (number-or-marker-p (car token))
+                     (bufferp (cdr token))
+                     (<= (car token) source-position))
+            (setq best (cons (prop-match-beginning match) (car token))))))
+      best)))
+
+(defun ch/speedbar--outline-point-follow ()
+  "Move the outline tree's point to the identifier enclosing point.
+On the global `post-command-hook'; a no-op unless the outline tree
+is showing the current buffer, and while point has not left the
+identifier the tree already sits on."
+  (when (and (featurep 'speedbar)
+             (eq ch/speedbar--flavor 'outline)
+             (eq (speedbar-frame-or-window) 'window)
+             (eq (current-buffer) ch/speedbar--outline-buffer))
+    (let ((source-position (point)))
+      (when-let* ((window (get-buffer-window speedbar-buffer))
+                  (found (with-current-buffer speedbar-buffer
+                           (ch/speedbar--outline-enclosing-line
+                            source-position))))
+        (unless (equal (cdr found) ch/speedbar--outline-followed)
+          (setq ch/speedbar--outline-followed (cdr found))
+          (set-window-point window (car found)))))))
+
+;; --- Outline preview -------------------------------------------------
+;; Moving point in the tree shows the identifier under it in the
+;; window the tree was entered from, the way `consult-buffer' shows a
+;; candidate while the minibuffer is up: the view moves, nothing is
+;; committed, and leaving the tree without pressing RET puts the window
+;; back where it was.  RET commits, through
+;; `ch/speedbar--outline-jump'.
+
+(defun ch/speedbar--outline-preview-save ()
+  "Record the preview window and the view to restore on leaving.
+Called when point enters the tree with no preview in progress.  The
+window showing the tree's source buffer is preferred; when the
+source buffer is not on screen the least recently used window other
+than the tree takes the preview."
+  (when-let* ((window (or (and (buffer-live-p ch/speedbar--outline-buffer)
+                               (get-buffer-window
+                                ch/speedbar--outline-buffer))
+                          (get-lru-window nil nil t))))
+    (unless (eq window (get-buffer-window speedbar-buffer))
+      (setq ch/speedbar--outline-preview-window window)
+      (setq ch/speedbar--outline-preview-restore
+            (list (window-buffer window)
+                  (window-point window)
+                  (window-start window))))))
+
+(defun ch/speedbar--outline-preview-undo ()
+  "Put the preview window back to the view saved on entering the tree."
+  (when-let* ((restore ch/speedbar--outline-preview-restore)
+              (window ch/speedbar--outline-preview-window))
+    (setq ch/speedbar--outline-preview-restore nil)
+    (setq ch/speedbar--outline-previewed nil)
+    (when (and (window-live-p window)
+               (buffer-live-p (nth 0 restore)))
+      (set-window-buffer window (nth 0 restore))
+      (set-window-point window (nth 1 restore))
+      (set-window-start window (nth 2 restore)))))
+
+(defun ch/speedbar--outline-preview-show (position)
+  "Show the source buffer at POSITION in the preview window.
+Only the window's view moves; the buffer's own point is left alone,
+so an abandoned preview costs the source buffer nothing."
+  (when-let* ((window ch/speedbar--outline-preview-window)
+              (buffer ch/speedbar--outline-buffer))
+    (when (and (window-live-p window) (buffer-live-p buffer))
+      (unless (eq (window-buffer window) buffer)
+        (set-window-buffer window buffer))
+      (set-window-point window position)
+      (with-selected-window window
+        (recenter)))))
+
+(defun ch/speedbar--outline-token-at-point ()
+  "Source position of the identifier line at point in the tree, or nil.
+`speedbar-make-tag-line' hangs the token on the tag text rather
+than the whole line, so the line is scanned for it.  Group lines
+carry a list as their token and yield nil, leaving the preview on
+whatever it already showed."
+  (let ((end (line-end-position))
+        (token nil))
+    (save-excursion
+      (beginning-of-line)
+      (while (and (not token) (< (point) end))
+        (setq token (get-text-property (point) 'speedbar-token))
+        (goto-char (next-single-property-change
+                    (point) 'speedbar-token nil end))))
+    (when (and (consp token)
+               (number-or-marker-p (car token))
+               (bufferp (cdr token)))
+      (car token))))
+
+(defun ch/speedbar--outline-preview ()
+  "Preview the tree line at point, or restore on leaving the tree.
+On the global `post-command-hook'.  While point is in the outline
+tree the identifier under it is shown in the window the tree was
+entered from; when point leaves the tree with no RET having
+committed, that window goes back to the view it had."
+  (when (and (featurep 'speedbar) (eq ch/speedbar--flavor 'outline))
+    (if (not (and (eq (speedbar-frame-or-window) 'window)
+                  (eq (current-buffer) speedbar-buffer)))
+        (ch/speedbar--outline-preview-undo)
+      (unless ch/speedbar--outline-preview-restore
+        (ch/speedbar--outline-preview-save))
+      (let ((position (ch/speedbar--outline-token-at-point)))
+        (when (and position
+                   (not (equal position ch/speedbar--outline-previewed)))
+          (setq ch/speedbar--outline-previewed position)
+          (ch/speedbar--outline-preview-show position))))))
+
+(add-hook 'post-command-hook #'ch/speedbar--outline-point-follow)
+(add-hook 'post-command-hook #'ch/speedbar--outline-preview)
 
 ;; --- Buffers display -------------------------------------------------
 ;; A third own top-level display, replacing the stock "buffers" and
