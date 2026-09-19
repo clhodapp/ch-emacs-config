@@ -12,8 +12,10 @@
 ;; byte compiler flags the functions behind the `evil-define-key' macro and
 ;; its bound commands as possibly missing at runtime; declare them.
 (declare-function evil-define-key* "evil-core")
+(declare-function dired-current-directory "dired")
 (declare-function dired-get-filename "dired")
 (declare-function dired-get-subdir "dired")
+(declare-function dired-goto-file "dired")
 (declare-function dired-goto-subdir "dired-aux")
 (declare-function dired-kill-subdir "dired-aux")
 (declare-function dired-maybe-insert-subdir "dired-aux")
