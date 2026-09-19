@@ -331,6 +331,21 @@
                     -f ert-run-tests-batch-and-exit
                   touch $out
                 '';
+                # The speedbar Project tree's delete commands, against the
+                # fully loaded init: what they depend on is how the tree's
+                # own rendering, evil's keymap precedence and
+                # `context-menu-mode' combine, none of which the init-load
+                # check can see.  A token-reading regression there is
+                # silent, since the tree still renders and only the
+                # commands stop finding anything.
+                speedbar-project-ert = pkgs.runCommand "speedbar-project-ert" { } ''
+                  export HOME="$TMPDIR"
+                  ${emacsScope.emacs}/bin/emacs --batch \
+                    -l ${emacsTestsSrc}/load-init.el \
+                    -l ${emacsTestsSrc}/speedbar-project-ert.el \
+                    -f ert-run-tests-batch-and-exit
+                  touch $out
+                '';
                 # render-dwim's extraction and normalization, plus the
                 # render and detect paths end to end (merman on PATH).
                 render-dwim-ert =
