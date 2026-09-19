@@ -49,8 +49,12 @@
   ;; mouse-wheel-flip-direction rather than changing this.
   (mouse-wheel-tilt-scroll t)
 
-  :custom-face
-  (default ((t (:font "Hack Nerd Font" :height 120))))
+  ;; The default face's font and the emoji fontset are not set here.  A
+  ;; font only resolves if its package is installed, so naming a family
+  ;; in the init would make this file depend on something it cannot
+  ;; provide.  The Home Manager module installs each font and emits the
+  ;; lines naming it, from the table in
+  ;; modules/home-manager/emacs/lib/fonts.nix.
 
   :config
   ;; Truncate in text buffers only: prose files whose line breaks are
@@ -81,8 +85,6 @@
   (savehist-mode 1)
   ;; Reopen files at the last point position (400-file LRU).
   (save-place-mode 1)
-  (set-fontset-font t 'emoji "Symbola")
-  (set-fontset-font t 'emoji (font-spec :family "Noto Color Emoji") nil 'prepend)
   ;; Saved Customize may reference removed themes (e.g. sanityinc-tomorrow-eighties)
   ;; or invalid faces (e.g. shadow in ansi-color-faces-vector). Reassert ours.
   (setq custom-enabled-themes nil)
