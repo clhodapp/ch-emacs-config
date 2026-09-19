@@ -8,8 +8,6 @@
 {
 
   debug = false;
-  systems = [ "x86_64-linux" ];
-
   caisson.nixpkgs.overlays = {
     all = {
       # `pkgs.ch-emacs-config.emacs`, `.emacs-pgtk`, `.emacs-nox`: the Emacs
