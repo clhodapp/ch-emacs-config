@@ -194,6 +194,12 @@ in
     packages = _epkgs: _: [ ];
   };
 
+  mode-line = {
+    enable = true;
+    init = readInit "mode-line.el";
+    packages = _epkgs: _: [ ];
+  };
+
   magit = {
     enable = true;
     init = readInit "magit.el";
