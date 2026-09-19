@@ -2,11 +2,11 @@
   "nodes": {
     "caisson": {
       "locked": {
-        "lastModified": 1789808488,
-        "narHash": "sha256-OpGvvilYQ02HsYBTYjtv9dxUkkHAWsDxPbIyM0BxrHI=",
+        "lastModified": 1789851301,
+        "narHash": "sha256-Coz3+N4BDbVG4JccE75eAZdRT7QqCB9XZRAd4mwtLoQ=",
         "owner": "nix-caisson",
         "repo": "caisson",
-        "rev": "3dcb22c258fc121c1fb23f5c471e0d5507f483c8",
+        "rev": "e0cdf0da98596d3d3ce65f9dd59bec55bfc3a8d9",
         "type": "github"
       },
       "original": {
@@ -17,11 +17,11 @@
     },
     "caisson_2": {
       "locked": {
-        "lastModified": 1789808488,
-        "narHash": "sha256-OpGvvilYQ02HsYBTYjtv9dxUkkHAWsDxPbIyM0BxrHI=",
+        "lastModified": 1789851301,
+        "narHash": "sha256-Coz3+N4BDbVG4JccE75eAZdRT7QqCB9XZRAd4mwtLoQ=",
         "owner": "nix-caisson",
         "repo": "caisson",
-        "rev": "3dcb22c258fc121c1fb23f5c471e0d5507f483c8",
+        "rev": "e0cdf0da98596d3d3ce65f9dd59bec55bfc3a8d9",
         "type": "github"
       },
       "original": {
@@ -74,11 +74,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1789808816,
-        "narHash": "sha256-RxLPXeuLZabxG6b5E2fRL4+QObrD4dO9+IkB8xyppV8=",
+        "lastModified": 1789851581,
+        "narHash": "sha256-MhdKn/39RroVS6/mZeeYWdMXX2n3bbn2vAaIXF2tA3w=",
         "owner": "clhodapp",
         "repo": "merman",
-        "rev": "3d0697a37feb7fa209701d7c936e8469239d1271",
+        "rev": "c537eac19a3e254f1720e44b13bbfadb4c397d47",
         "type": "github"
       },
       "original": {
