@@ -53,6 +53,7 @@
       lib = caisson.lib.caisson-core.mkLib {
         inherit inputs;
         systems = [ "x86_64-linux" ];
+        defaultEcosystemSrc.nixpkgs = inputs.nixpkgs;
 
         projects = {
           inherit caisson;
