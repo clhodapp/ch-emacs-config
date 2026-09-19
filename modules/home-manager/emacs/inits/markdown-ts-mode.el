@@ -22,31 +22,29 @@
   ;; outline buffers, so these follow a theme change instead of pinning
   ;; hex values here.
   ;;
-  ;; Size and weight together split the six levels into two groups.  The
-  ;; first three are the document's shape, so they are bold and set
-  ;; larger, stepping down.  From the fourth the nesting is finer than
-  ;; type size usefully renders, so those stay at body size and drop to
-  ;; normal weight: the loss of bold is itself the signal that the
-  ;; heading is a minor one, and it keeps a deeply nested section from
-  ;; shouting as loudly as the section that contains it.
+  ;; Weight steps down once per level, which Monaspace can render because
+  ;; it draws seven real weights.  Size reinforces the top three, where
+  ;; the document's shape is; from the fourth the nesting is finer than
+  ;; type size usefully renders, so those stay at body size and weight
+  ;; alone continues the descent, ending below body weight so a deeply
+  ;; nested heading cannot shout as loudly as the section containing it.
   ;;
-  ;; Weight is binary here rather than a ramp because Hack Nerd Font
-  ;; ships only Regular and Bold (plus their italics).  A request for an
-  ;; intermediate weight such as semibold is rounded to one of those by
-  ;; fontconfig, so a graded four-step ramp would render as an arbitrary
-  ;; split anyway.
+  ;; A weight ramp needs a font that draws the intermediate weights.
+  ;; Where only Regular and Bold exist, fontconfig rounds a request for
+  ;; semibold to one of them and the ramp collapses into an arbitrary
+  ;; split, which is what the previous two-weight font forced.
   ;;
   ;; sanityinc-tomorrow cycles six hues across eight outline levels, so
   ;; `outline-6' repeats `outline-1' blue.  Those two are never confusable
-  ;; despite the shared hue: the first level is bold and half again the
-  ;; body size, the sixth is neither.
+  ;; despite the shared hue: the first level is the heaviest weight at
+  ;; half again the body size, the sixth is the lightest at body size.
   :custom-face
   (markdown-ts-heading-1 ((t (:inherit outline-1 :weight bold :height 1.4))))
-  (markdown-ts-heading-2 ((t (:inherit outline-2 :weight bold :height 1.25))))
-  (markdown-ts-heading-3 ((t (:inherit outline-3 :weight bold :height 1.1))))
-  (markdown-ts-heading-4 ((t (:inherit outline-4 :weight normal))))
+  (markdown-ts-heading-2 ((t (:inherit outline-2 :weight semi-bold :height 1.25))))
+  (markdown-ts-heading-3 ((t (:inherit outline-3 :weight medium :height 1.1))))
+  (markdown-ts-heading-4 ((t (:inherit outline-4 :weight medium))))
   (markdown-ts-heading-5 ((t (:inherit outline-5 :weight normal))))
-  (markdown-ts-heading-6 ((t (:inherit outline-6 :weight normal))))
+  (markdown-ts-heading-6 ((t (:inherit outline-6 :weight light))))
   ;; A setext heading (underlined by === or ---) is level 1 or 2, but
   ;; the mode has one face for both and its default points at level 1.
   (markdown-ts-setext-heading ((t (:inherit markdown-ts-heading-1))))

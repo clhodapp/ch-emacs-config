@@ -50,7 +50,13 @@
   (mouse-wheel-tilt-scroll t)
 
   :custom-face
-  (default ((t (:font "Hack Nerd Font" :height 120))))
+  ;; Monaspace ships seven weights where Hack ships two, which is what
+  ;; lets faces distinguish levels by weight rather than by colour alone.
+  ;; This is the unpatched family: the Nerd Font patched build of
+  ;; Monaspace covers only five weights, dropping SemiBold and ExtraBold.
+  ;; Icons come from the separate `Symbols Nerd Font Mono' instead, so the
+  ;; text font and the icon set are chosen independently.
+  (default ((t (:font "Monaspace Neon" :height 120))))
 
   :config
   ;; Truncate in text buffers only: prose files whose line breaks are
