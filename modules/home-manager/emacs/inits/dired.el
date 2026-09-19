@@ -12,8 +12,10 @@
 ;; byte compiler flags the functions behind the `evil-define-key' macro and
 ;; its bound commands as possibly missing at runtime; declare them.
 (declare-function evil-define-key* "evil-core")
+(declare-function dired-current-directory "dired")
 (declare-function dired-get-filename "dired")
 (declare-function dired-get-subdir "dired")
+(declare-function dired-goto-file "dired")
 (declare-function dired-goto-subdir "dired-aux")
 (declare-function dired-kill-subdir "dired-aux")
 (declare-function dired-maybe-insert-subdir "dired-aux")
@@ -47,39 +49,54 @@ returns it."
 This undoes `I' (`dired-maybe-insert-subdir').  Point on a directory
 whose listing is open closes that listing, whether point sits on the
 directory's entry line up in the parent or on the header line of the
-listing itself; from an entry line point returns to it, so a following
-`I' reopens what was just closed.  Anywhere else, including a file
-line, it closes the listing that contains point, which is what vim's
-`zc' does to the fold around the cursor.  Dired cannot remove the
-buffer's own top-level listing, so that signals."
+listing itself.  Anywhere else, including a file line, it closes the
+listing that contains point, which is what vim's `zc' does to the fold
+around the cursor.  Dired cannot remove the buffer's own top-level
+listing, so that signals.
+
+Point ends on the closed directory's entry line up in the parent
+listing where there is one, so a following `I' reopens what was just
+closed.  Without that it would be left on the blank line the kill
+leaves behind, since the region `dired-kill-subdir' deletes is where
+point was standing."
   (interactive)
   (let* ((dir (ch/dired--subdir-at-point))
          (open (and dir (ch/dired--subdir-inserted-p dir)))
-         ;; Only meaningful when the listing being killed is somewhere
-         ;; other than where point is: the kill deletes the region point
-         ;; sits in, and a marker inside it would collapse to its start.
-         (return-to (and open (not (dired-get-subdir)) (point-marker))))
-    (unwind-protect
-        (progn
-          (when open
-            (dired-goto-subdir dir))
-          (dired-kill-subdir))
-      (when return-to
-        (goto-char return-to)
-        (set-marker return-to nil)))))
+         ;; The directory actually killed: the one at point when its
+         ;; listing is open, else whichever listing encloses point.
+         (killed (if open dir (dired-current-directory))))
+    (when open
+      (dired-goto-subdir dir))
+    (dired-kill-subdir)
+    ;; `dired-goto-file' wants the name without a trailing slash, and
+    ;; returns nil when the parent listing is not itself inserted, which
+    ;; leaves point where the kill put it.
+    (when killed
+      (dired-goto-file (directory-file-name killed)))))
 
 (defun ch/dired-toggle-subdir ()
   "Insert the subdirectory at point, or close it if already inserted.
 
 Opening is `I' (`dired-maybe-insert-subdir'); closing is
 `ch/dired-close-subdir'.  On a line that is not a directory this
-visits the file instead."
+visits the file instead.
+
+Opening leaves point on the line it started from rather than where
+`dired-maybe-insert-subdir' leaves it.  That command ends with
+`dired-initial-position', which walks point into the fresh listing and
+onto its first real entry, so repeating this command would act on that
+entry instead of closing what it just opened.  Holding point still
+makes the pair a toggle in place."
   (interactive)
   (let ((dir (ch/dired--subdir-at-point)))
     (cond
      ((null dir) (dired-find-file))
      ((ch/dired--subdir-inserted-p dir) (ch/dired-close-subdir))
-     (t (dired-maybe-insert-subdir dir)))))
+     (t (let ((return-to (point-marker)))
+          (unwind-protect
+              (dired-maybe-insert-subdir dir)
+            (goto-char return-to)
+            (set-marker return-to nil)))))))
 
 (defun ch/dired-mouse-toggle-subdir (event)
   "Run `ch/dired-toggle-subdir' on the line EVENT points at."
