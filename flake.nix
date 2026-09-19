@@ -64,9 +64,7 @@
             default = lib.caisson.flake-parts.mkModule ./modules/flake-parts/default;
             emacs = lib.caisson.flake-parts.mkModule ./modules/flake-parts/emacs;
           };
-          homeManager = import ./modules/home-manager {
-            inherit lib;
-          };
+          homeManager.emacs = lib.caisson.home-manager.mkModule ./modules/home-manager/emacs;
         };
       };
     in
