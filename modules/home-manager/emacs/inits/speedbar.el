@@ -19,7 +19,6 @@
 (declare-function speedbar-delete-subblock "speedbar")
 (declare-function speedbar-file-lists "speedbar")
 (declare-function speedbar-frame-or-window "speedbar")
-(declare-function speedbar-line-token "speedbar")
 (declare-function speedbar-make-specialized-keymap "speedbar")
 (declare-function speedbar-make-tag-line "speedbar")
 (declare-function speedbar-mode "speedbar")
@@ -291,15 +290,33 @@ Shared by Project directories and Outline groups."
   "Visit PATH in a normal window, leaving the tree in place."
   (pop-to-buffer (find-file-noselect path)))
 
+(defun ch/speedbar--project-token-at (&optional position)
+  "Speedbar token on the line at POSITION, or nil.
+POSITION defaults to point.  `speedbar-line-token' cannot be used
+here: it looks for the token at the line's name text, whereas a
+Project-tree directory carries its path on the expander button, and
+its regexp expects a bracketed button, which a file line's bare \">\"
+marker is not.  Scanning the line finds the token either place, the
+same way `ch/speedbar--outline-token-at-point' does."
+  (save-excursion
+    (when position (goto-char position))
+    (let ((end (line-end-position))
+          (token nil))
+      (beginning-of-line)
+      (while (and (not token) (< (point) end))
+        (setq token (get-text-property (point) 'speedbar-token))
+        (goto-char (next-single-property-change
+                    (point) 'speedbar-token nil end)))
+      token)))
+
 (defun ch/speedbar--project-entry-at (&optional position)
   "The Project-tree entry on the line at POSITION, or nil.
 Return (PATH . DIRECTORY-P).  POSITION defaults to point, and is
 where a mouse click landed when the context menu asks, since a
-right-click does not move point.  `speedbar-line-token' reads the
-token past the line's prefix, which is the absolute path both line
-kinds carry; the root line has no token and yields nil, so the tree
-cannot delete the project it is rooted at."
-  (let ((token (speedbar-line-token position)))
+right-click does not move point.  Both line kinds carry the absolute
+path as their token; the root line carries none and yields nil, so
+the tree cannot delete the project it is rooted at."
+  (let ((token (ch/speedbar--project-token-at position)))
     (when (stringp token)
       (cons token (file-directory-p token)))))
 
@@ -371,7 +388,7 @@ one scan finds either."
     (goto-char (point-min))
     (let ((found nil))
       (while (and (not found) (not (eobp)))
-        (if (equal (speedbar-line-token) path)
+        (if (equal (ch/speedbar--project-token-at) path)
             (setq found (line-beginning-position))
           (forward-line 1)))
       found)))
