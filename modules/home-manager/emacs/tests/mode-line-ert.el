@@ -141,11 +141,15 @@ would put a glyph on the scratch buffer and on process output."
 ;;; The assembled format.
 
 (ert-deftest ch-mode-line-format-drops-the-constant-segments ()
-  "The rebuilt format omits the segments that never varied."
+  "The rebuilt format omits the segments that never varied.
+`mode-line-client' is among them because the daemon bundle runs Emacs as
+a daemon: every frame with a window system is an emacsclient frame, so
+its \"@\" was on every frame the user ever sees."
   (let ((format (default-value 'mode-line-format)))
     (should-not (memq 'mode-line-front-space format))
     (should-not (memq 'mode-line-frame-identification format))
-    (should-not (memq 'mode-line-modified format))))
+    (should-not (memq 'mode-line-modified format))
+    (should-not (memq 'mode-line-client format))))
 
 (ert-deftest ch-mode-line-format-keeps-the-informative-segments ()
   "Position, major mode, version control and misc info stay."

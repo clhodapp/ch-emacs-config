@@ -135,10 +135,18 @@ case and spells the deviation out in the rare one."
   ;; read-only, unsaved, remote and dedicated facts they carried are now
   ;; icons that appear only when true.  `%b' replaces the padded `%12b',
   ;; so a short buffer name no longer trails blanks to a 12-column stop.
+  ;;
+  ;; `mode-line-client' goes too, for the same reason but one specific
+  ;; to this configuration: it renders "@" on any frame with a `client'
+  ;; parameter, and the daemon bundle runs Emacs as a daemon that every
+  ;; frame connects to through emacsclient.  The only frame without the
+  ;; parameter is the daemon's own initial terminal frame, which has no
+  ;; window system and is never looked at, so "@" marks every frame the
+  ;; user ever sees.  A window where it were absent would be the
+  ;; surprise, and that window does not occur here.
   (mode-line-format
    '("%e"
      mode-line-mule-info
-     mode-line-client
      (:eval (ch-emacs-config--buffer-status-icon))
      (:eval (ch-emacs-config--remote-icon))
      (:eval (ch-emacs-config--dedicated-icon))
