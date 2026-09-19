@@ -117,29 +117,47 @@ makes the pair a toggle in place."
 
   ;; Stock dired leaves mouse-1 to Emacs's link-following, via a
   ;; [follow-link] binding of `mouse-face' that makes each filename count
-  ;; as a link, so a quick click runs `dired-mouse-find-file-other-window'.
-  ;; Clearing that entry needs `define-key' on `dired-mode-map' itself;
-  ;; `evil-define-key' writes to an auxiliary map and would leave the
-  ;; original in place.  The binding then goes where evil will find it:
-  ;; evil-collection puts dired buffers in normal state, and its state
-  ;; keymap outranks `dired-mode-map' (speedbar.el hit the same thing).
-  ;; The repeat variants matter as much as the single press, because this
-  ;; is a toggle: opening a directory and shutting it again lands two
-  ;; clicks inside `double-click-time' and Emacs delivers the second as
-  ;; `double-mouse-1'.  Unbound, it would do nothing and the toggle would
-  ;; appear to swallow every other click.  Emacs caps its synthesized
-  ;; repeat modifiers at triple, so these two cover four clicks and beyond.
-  (define-key dired-mode-map [follow-link] nil)
-  (evil-define-key 'normal dired-mode-map
-    [mouse-1] #'ch/dired-mouse-toggle-subdir
-    [double-mouse-1] #'ch/dired-mouse-toggle-subdir
-    [triple-mouse-1] #'ch/dired-mouse-toggle-subdir
-    ;; vim's fold mnemonics for the same open/close/toggle the mouse
-    ;; drives: an inserted subdirectory listing is fold-shaped.  Evil
-    ;; binds these globally to the hideshow/outline fold commands, which
-    ;; have nothing to act on in a dired buffer; this auxiliary map
-    ;; outranks that one only here, so folding elsewhere is unchanged.
-    ;; `I' (evil-collection's `dired-maybe-insert-subdir') is untouched.
-    "zo" #'dired-maybe-insert-subdir
-    "zc" #'ch/dired-close-subdir
-    "za" #'ch/dired-toggle-subdir))
+  ;; as a link, so a quick press runs `dired-mouse-find-file-other-window'.
+  ;; That entry lives in `dired-mode-map' itself, so clearing it needs
+  ;; `define-key' there; `evil-define-key' writes to an auxiliary map and
+  ;; would leave the original in place.
+  (define-key dired-mode-map [follow-link] nil))
+
+;; The keys go on `evil-collection-setup-hook', which runs after
+;; evil-collection has finished a mode.  Binding them in the `use-package'
+;; body above does not hold: dired is preloaded and this section compiles
+;; before evil's (alphabetical aggregation), so `evil-collection-init'
+;; runs from evil's own `:config' afterwards and rebuilds the normal-state
+;; auxiliary map for `dired-mode-map', dropping whatever was already
+;; there.  The plain `define-key' above survives that because it writes to
+;; a different keymap.
+;;
+;; The bindings must reach the auxiliary map rather than `dired-mode-map':
+;; evil-collection puts dired buffers in normal state, and evil's state
+;; keymap outranks the mode map (speedbar.el hit the same thing).
+(defun ch/dired--install-keys (mode &rest _rest)
+  "Install this config's dired keys once evil-collection has set MODE up."
+  (when (eq mode 'dired)
+    (evil-define-key 'normal dired-mode-map
+      ;; The repeat variants matter as much as the single press, because
+      ;; this is a toggle: opening a directory and shutting it again lands
+      ;; two presses inside `double-click-time' and Emacs delivers the
+      ;; second as `double-mouse-1'.  Unbound, it would do nothing and the
+      ;; toggle would appear to swallow every other press.  Emacs caps its
+      ;; synthesized repeat modifiers at triple, so these two cover four
+      ;; presses and beyond.
+      [mouse-1] #'ch/dired-mouse-toggle-subdir
+      [double-mouse-1] #'ch/dired-mouse-toggle-subdir
+      [triple-mouse-1] #'ch/dired-mouse-toggle-subdir
+      ;; vim's fold mnemonics for the same open/close/toggle the mouse
+      ;; drives: an inserted subdirectory listing is fold-shaped.  Evil
+      ;; binds these globally to the hideshow/outline fold commands, which
+      ;; have nothing to act on in a dired buffer; this auxiliary map
+      ;; outranks that one only here, so folding elsewhere is unchanged.
+      ;; `I' (evil-collection's `dired-maybe-insert-subdir') is untouched.
+      "zo" #'dired-maybe-insert-subdir
+      "zc" #'ch/dired-close-subdir
+      "za" #'ch/dired-toggle-subdir)))
+
+(with-eval-after-load 'evil-collection
+  (add-hook 'evil-collection-setup-hook #'ch/dired--install-keys))
