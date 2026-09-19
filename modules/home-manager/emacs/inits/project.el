@@ -38,14 +38,16 @@ init points at a store path; a bare \"rg\" is looked up on
 (use-package project
   :demand t
   :custom
+  ;; Keep this list and the `<leader> p' bindings below in step: every
+  ;; command here answers to the same key under the leader, so the menu
+  ;; after `<leader> p p' reads like the menu you already know.
   (project-switch-commands
    '((project-claude "Claude" ?a)
+     (project-dired "Dired" ?d)
      (project-eshell "Eshell" ?e)
-     (project-find-dir "Find directory" ?d)
      (project-find-file "Find file" ?f)
      (project-ghostel "Ghostel" ?v)
-     (ch/project-grep "Grep" ?g)
-     (project-vc-dir "Magit/VC" ?m)))
+     (ch/project-grep "Grep" ?g)))
   :config
   (defun project-ghostel ()
     "Launch ghostel in the current project root, with a project-named buffer."
@@ -79,8 +81,11 @@ just revisits it."
                                  "claude"))))))
   (ch/leader-prefix-title "p" "project")
   (evil-global-set-key 'motion (kbd "<leader> p p") #'project-switch-project)
-  (evil-global-set-key 'motion (kbd "<leader> p f") #'project-find-file)
+  (evil-global-set-key 'motion (kbd "<leader> p a") #'project-claude)
   (evil-global-set-key 'motion (kbd "<leader> p b") #'ch/project-buffer)
+  (evil-global-set-key 'motion (kbd "<leader> p d") #'project-dired)
+  (evil-global-set-key 'motion (kbd "<leader> p e") #'project-eshell)
+  (evil-global-set-key 'motion (kbd "<leader> p f") #'project-find-file)
   (evil-global-set-key 'motion (kbd "<leader> p g") #'ch/project-grep)
   (evil-global-set-key 'motion (kbd "<leader> p k") #'project-kill-buffers)
-  (evil-global-set-key 'motion (kbd "<leader> p d") #'project-dired))
+  (evil-global-set-key 'motion (kbd "<leader> p v") #'project-ghostel))
