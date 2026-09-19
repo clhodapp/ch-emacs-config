@@ -54,16 +54,16 @@
     "ghostel": {
       "flake": false,
       "locked": {
-        "lastModified": 1789016926,
-        "narHash": "sha256-rpYKqiGL2hIwpqEsLHP3hLKXA0br3B+B5By7o69GmNw=",
-        "owner": "clhodapp",
+        "lastModified": 1789834264,
+        "narHash": "sha256-NpfnlggAcThNw9uY7Uq4qFPEJ+md8aZ8i32CQSUKz+w=",
+        "owner": "dakra",
         "repo": "ghostel",
-        "rev": "8ddd575a49a8b16e665209bb564ea7e981dd8bb6",
+        "rev": "829ac98a3e3183249028f9f4e029e7e9c0869be3",
         "type": "github"
       },
       "original": {
-        "owner": "clhodapp",
-        "ref": "fix/mouse-cell-under-text-scale",
+        "owner": "dakra",
+        "ref": "v0.56.0",
         "repo": "ghostel",
         "type": "github"
       }

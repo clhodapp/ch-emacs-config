@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Small emacsPackages overrides layered on top of emacs-overlay.
 {
-  lib,
   pkgs,
   # Sources of the packages consumed as plain (non-flake) inputs, keyed by
   # package name; each has a package.nix under this directory.
@@ -11,7 +10,9 @@
 self: super: {
   pr-review = self.callPackage ./pr-review/package.nix { src = sources.pr-review; };
 
-  # Carry a one-line upstream bug fix until upstream takes it.
+  # Two upstream bug fixes, carried until upstream takes them.  Neither is
+  # filed as of 0.56.0.  `--replace-fail' means a source change that moves
+  # either line breaks the build rather than silently skipping the patch.
   #
   # `adjustGlyph' scales a fallback-font glyph to fit the terminal cell, but
   # the scale has a floor and no ceiling.  When the fallback glyph is SMALLER
@@ -28,10 +29,9 @@ self: super: {
   # DejaVu Sans Mono Bold, smaller than the Hack cell on every side.  Measured:
   # bold frames realize 21px rows against a 19px cell, non-bold frames 19px.
   #
-  # Upstream fixed the oversized-glyph direction in dakra/ghostel#407; this is
-  # the undersized direction, still unfixed as of 0.52.0.  Drop this attribute
-  # once upstream clamps the scale at 1.0.  `--replace-fail' means a source
-  # change breaks the build rather than silently skipping the patch.
+  # Drop the first patch once upstream clamps the scale at 1.0.  Upstream
+  # handles the oversized direction already (dakra/ghostel#407); this is the
+  # undersized one.
   #
   # The second patch is the horizontal counterpart, visible only under
   # `text-scale-mode'.  When a fallback glyph claims a second column, the
@@ -43,45 +43,35 @@ self: super: {
   # no claim land on the grid, and the line shifts as the spinner animates.
   # The renderer already has the scaled width as `slot_width'; emit that in
   # pixels, `(min-width ((PIXELS)))', so the reservation follows the scale.
-  # Measured: following text lands at exactly 2.00 columns at scales 0, +2 and
-  # +4 (was 1.64 and 1.65 columns).  Unfixed upstream as of 0.53.0.
+  # Measured: following text lands at exactly 2.00 columns at scales 0, +2
+  # and +4.  Drop this patch once upstream reserves the scaled width.
   #
-  # The third change is in the elisp: dakra/ghostel#676.
+  # The `ghostel' flake input supplies the source, because 0.54.0 fixed mouse
+  # cells under `text-scale-mode' (dakra/ghostel#676) and nixpkgs still ships
+  # 0.53.0.  nixpkgs remains the build recipe; `version', `src' and `zigDeps'
+  # are the whole of the override, and all three go once the pinned nixpkgs
+  # reaches 0.54.0 or later.
   #
-  # Every mouse handler turns the event's pixel position into a terminal
-  # cell with `posn-col-row' and no USE-WINDOW argument, which divides by
-  # the frame's default character size.  A buffer-local font change
-  # (`text-scale-mode') leaves the reported grid correct but scales the sent
-  # column and row up by the same factor, so a program with mouse tracking
-  # (Claude Code, htop) acts on a cell to the right of and below the pointer.
-  # The fix (a helper dividing by the window's own font width and line
-  # height) is on the fork branch behind the upstream pull request, so the
-  # `ghostel' flake input pins that branch and replaces the package source
-  # here: elisp and native module alike build from it.  nixpkgs stays the
-  # source of the build recipe.  Drop the input and the `version' and `src'
-  # overrides once the pinned nixpkgs ghostel carries the fix.
+  # `zigDeps' is a fixed-output derivation over the source, so it is refetched
+  # here and its hash tracks the pin.  `passthru.module' reads `src', `version'
+  # and `zigDeps' back through `finalAttrs', hence the two-argument form.
   #
-  # The fork tip is upstream 0.53.0 plus the one elisp commit, so the version
-  # follows it rather than nixpkgs' 0.52.0.  The zig dependency set is the
-  # same as 0.52.0's, so nixpkgs' `zigDeps' hash still holds; a fork bump
-  # that changes the dependencies fails that fixed-output derivation with
-  # the new hash, which then goes in a `zigDeps = old.zig.fetchDeps { ... }'
-  # override beside `src'.
-  #
-  # `evil-ghostel' below builds from `self.ghostel.src', so it follows the
-  # fork too; the fork does not touch it.
-  ghostel =
-    let
-      forkDate = sources.ghostel.lastModifiedDate;
-      forkVersion = "0.53.0-unstable-${lib.substring 0 4 forkDate}-${lib.substring 4 2 forkDate}-${lib.substring 6 2 forkDate}";
-    in
-    super.ghostel.overrideAttrs (old: {
-      version = forkVersion;
+  # `evil-ghostel' below builds from `self.ghostel.src', so it follows this
+  # pin too.
+  ghostel = super.ghostel.overrideAttrs (
+    finalAttrs: old: {
+      version = "0.56.0";
       src = sources.ghostel;
+      zigDeps = finalAttrs.zig.fetchDeps {
+        inherit (finalAttrs) src pname version;
+        fetchAll = true;
+        hash = "sha256-87q0nSOkZaIHW8Ztgf5pR13sHNw7eQKJhu12QjRMTvA=";
+      };
       passthru = old.passthru // {
         # nixpkgs' `preBuild' installs `finalPackage.module', so patching
         # the module here is enough for the elisp package to ship it.
         module = old.passthru.module.overrideAttrs (m: {
+          inherit (finalAttrs) src version zigDeps;
           postPatch = (m.postPatch or "") + ''
             substituteInPlace src/Renderer.zig \
               --replace-fail \
@@ -94,7 +84,8 @@ self: super: {
           '';
         });
       };
-    });
+    }
+  );
 
   # ghostel ships its evil integration under extensions/, which its own
   # recipe does not install (melpa's :defaults takes top-level .el only).
