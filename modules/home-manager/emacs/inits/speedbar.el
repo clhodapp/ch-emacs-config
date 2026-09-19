@@ -19,10 +19,12 @@
 (declare-function speedbar-delete-subblock "speedbar")
 (declare-function speedbar-file-lists "speedbar")
 (declare-function speedbar-frame-or-window "speedbar")
+(declare-function speedbar-line-token "speedbar")
 (declare-function speedbar-make-specialized-keymap "speedbar")
 (declare-function speedbar-make-tag-line "speedbar")
 (declare-function speedbar-mode "speedbar")
 (declare-function speedbar-refresh "speedbar")
+(declare-function speedbar-reset-scanners "speedbar")
 (declare-function speedbar-timer-fn "speedbar")
 (declare-function speedbar-toggle-line-expansion "speedbar")
 (declare-function nerd-icons-octicon "nerd-icons")
@@ -183,6 +185,8 @@ directories in place to walk the project."
     (ch/speedbar--toggle 'project
                          (lambda ()
                            (ch/speedbar--project-register)
+                           (with-current-buffer speedbar-buffer
+                             (ch/speedbar--project-arm-context-menu))
                            (ch/speedbar--show-display "Project" root)))))
 
 (defvar-local ch/speedbar--pr-followed-file nil
@@ -220,6 +224,12 @@ opened from, so visiting files does not replace it."
   "Register the Project display; speedbar must already be loaded."
   (unless ch/speedbar--project-key-map
     (setq ch/speedbar--project-key-map (speedbar-make-specialized-keymap))
+    ;; A specialized keymap is the display's local map, which evil's
+    ;; state keymaps outrank, so a plain `define-key' of \"D\" here would
+    ;; lose to evil's delete-to-end-of-line.  `evil-define-key' writes
+    ;; into the auxiliary map evil consults for this keymap instead.
+    (evil-define-key 'normal ch/speedbar--project-key-map
+      "D" #'ch/speedbar--project-delete)
     (speedbar-add-expansion-list
      '("Project" ch/speedbar--project-menu ch/speedbar--project-key-map
        ch/speedbar--project-buttons))))
@@ -280,6 +290,126 @@ Shared by Project directories and Outline groups."
 (defun ch/speedbar--project-visit (_text path _indent)
   "Visit PATH in a normal window, leaving the tree in place."
   (pop-to-buffer (find-file-noselect path)))
+
+(defun ch/speedbar--project-entry-at (&optional position)
+  "The Project-tree entry on the line at POSITION, or nil.
+Return (PATH . DIRECTORY-P).  POSITION defaults to point, and is
+where a mouse click landed when the context menu asks, since a
+right-click does not move point.  `speedbar-line-token' reads the
+token past the line's prefix, which is the absolute path both line
+kinds carry; the root line has no token and yields nil, so the tree
+cannot delete the project it is rooted at."
+  (let ((token (speedbar-line-token position)))
+    (when (stringp token)
+      (cons token (file-directory-p token)))))
+
+(defun ch/speedbar--project-line-depth ()
+  "Depth of the tree line at point, as `speedbar-delete-subblock' means it.
+Speedbar writes the depth into each line as its \"NN:\" prefix."
+  (save-excursion
+    (beginning-of-line)
+    (when (looking-at "^\\([0-9]+\\):")
+      (string-to-number (match-string 1)))))
+
+(defun ch/speedbar--project-drop-line ()
+  "Remove the tree line at point, along with any subtree beneath it.
+Editing the tree in place keeps the expansion state of every other
+directory, which a full `speedbar-refresh' would throw away."
+  (when-let* ((depth (ch/speedbar--project-line-depth)))
+    (speedbar-delete-subblock depth))
+  (speedbar-with-writable
+    (delete-region (line-beginning-position)
+                   (min (point-max) (1+ (line-end-position))))))
+
+(defun ch/speedbar--project-delete (&optional position)
+  "Delete the file or directory on the Project-tree line at POSITION.
+POSITION defaults to point.  Confirmation is required: the prompt
+names the full path and, for a directory, says that the delete is
+recursive.  Buffers visiting what was deleted are killed, since they
+would otherwise offer to write the file back.  Deletion honors
+`delete-by-moving-to-trash', which `delete-file' and
+`delete-directory' consult when passed TRASH.
+
+Point ends on the line that took the deleted one's place, so a
+`save-excursion' around the whole command would restore a position
+inside text that is no longer there."
+  (interactive)
+  (when position (goto-char position))
+  (let* ((entry (or (ch/speedbar--project-entry-at)
+                    (user-error "No file or directory on this line")))
+         (path (car entry))
+         (directory-p (cdr entry)))
+    (cond
+     ((not (file-exists-p path))
+      (ch/speedbar--project-drop-line)
+      (message "%s was already gone" (abbreviate-file-name path)))
+     ((yes-or-no-p (format "Delete %s %s? "
+                           (if directory-p "directory and its contents"
+                             "file")
+                           (abbreviate-file-name path)))
+      (if directory-p
+          (delete-directory path t t)
+        (delete-file path t))
+      (dolist (buffer (buffer-list))
+        (when-let* ((file (buffer-file-name buffer)))
+          (when (or (equal file path)
+                    (and directory-p
+                         (string-prefix-p (file-name-as-directory path)
+                                          file)))
+            (kill-buffer buffer))))
+      ;; `speedbar-file-lists' caches directory contents, and would
+      ;; hand the deleted name back the next time its parent expands.
+      (speedbar-reset-scanners)
+      (ch/speedbar--project-drop-line)
+      (message "Deleted %s" (abbreviate-file-name path))))))
+
+(defun ch/speedbar--project-line-of (path)
+  "Position of PATH's line in the Project tree, or nil if it has none.
+Both line kinds carry the absolute path as their speedbar token, so
+one scan finds either."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((found nil))
+      (while (and (not found) (not (eobp)))
+        (if (equal (speedbar-line-token) path)
+            (setq found (line-beginning-position))
+          (forward-line 1)))
+      found)))
+
+(defun ch/speedbar--project-context-menu (menu click)
+  "Add the Project tree's entries to MENU for the right-click CLICK.
+On `context-menu-functions', which every buffer's right-click
+consults, so the entries are gated on being in a Project tree: other
+speedbar flavors and every other buffer see the menu unchanged.  The
+entries act on the line CLICK landed on rather than on point, which a
+right-click leaves where it was.  The command closes over the path
+rather than over the click position, and looks the path's line up
+again when it runs, so a tree edited between the press and the menu
+selection cannot delete a different file than the menu named."
+  (when (and (derived-mode-p 'speedbar-mode)
+             (eq ch/speedbar--flavor 'project))
+    (when-let* ((position (posn-point (event-start click)))
+                (entry (ch/speedbar--project-entry-at position))
+                (path (car entry)))
+      (define-key-after menu [ch/speedbar-project-separator]
+        menu-bar-separator)
+      (define-key-after menu [ch/speedbar-project-delete]
+        `(menu-item ,(format "Delete %s"
+                             (file-name-nondirectory
+                              (directory-file-name path)))
+                    ,(lambda ()
+                       (interactive)
+                       (if-let* ((line (ch/speedbar--project-line-of path)))
+                           (ch/speedbar--project-delete line)
+                         (user-error "%s is no longer in the tree"
+                                     (abbreviate-file-name path))))
+                    :help "Delete this file or directory from disk"))))
+  menu)
+
+(defun ch/speedbar--project-arm-context-menu ()
+  "Contribute the Project tree's right-click entries in this buffer."
+  (add-hook 'context-menu-functions
+            #'ch/speedbar--project-context-menu 90 t))
 
 ;; --- Outline display -------------------------------------------------
 ;; A second own top-level display: the identifiers of one source
