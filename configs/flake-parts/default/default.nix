@@ -346,6 +346,19 @@
                     -f ert-run-tests-batch-and-exit
                   touch $out
                 '';
+                # The mode-line indicators, which exist to render nothing
+                # in the normal case: a saved, writable, local, UTF-8
+                # buffer must contribute no characters to the left edge.
+                # The functions read buffer-local state and return
+                # strings, so --batch exercises them as redisplay does.
+                mode-line-ert = pkgs.runCommand "mode-line-ert" { } ''
+                  export HOME="$TMPDIR"
+                  ${emacsScope.emacs}/bin/emacs --batch \
+                    -f package-activate-all \
+                    -l ${emacsTestsSrc}/mode-line-ert.el \
+                    -f ert-run-tests-batch-and-exit
+                  touch $out
+                '';
                 # render-dwim's extraction and normalization, plus the
                 # render and detect paths end to end (merman on PATH).
                 render-dwim-ert =
