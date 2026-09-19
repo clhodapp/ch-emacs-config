@@ -1,6 +1,11 @@
 ;; SPDX-License-Identifier: MIT
 ;; init project.el
 (declare-function ghostel-exec "ghostel")
+;; Both are defined by the `:config' block below. A `defun' nested in a
+;; `use-package' body does not register with the byte-compiler, so the
+;; `<leader> p' bindings that reference them need these declarations.
+(declare-function project-claude "project")
+(declare-function project-ghostel "project")
 (defvar consult-ripgrep-args)
 
 (defun ch/project--ripgrep-program ()
