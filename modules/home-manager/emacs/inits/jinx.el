@@ -4,8 +4,6 @@
 (declare-function jinx-mode "jinx")
 
 (use-package jinx
-  ;; Spell checking is for a user at the buffer; a mirror child has none.
-  :unless (bound-and-true-p ch/mirror-profile)
   :hook (emacs-startup . global-jinx-mode)
 
   :commands

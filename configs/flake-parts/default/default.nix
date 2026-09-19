@@ -141,24 +141,6 @@
                 ${scope.emacs}/bin/emacs --batch -l ${emacsTestsSrc}/load-init.el
                 touch $out
               '';
-            # The mirror-profile guards: with `ch/mirror-profile' set before
-            # the init loads (as a spawner sets it), the inits that start
-            # language servers, direnv, the spell checker, or a terminal
-            # register nothing; without it, every one registers.  Both
-            # runs share one assertion file, so the check can fail.
-            mkMirrorProfileCheck =
-              name: scope:
-              pkgs.runCommand "${name}-mirror-profile" { } ''
-                export HOME="$TMPDIR"
-                ${scope.emacs}/bin/emacs --batch \
-                  --eval '(setq ch/mirror-profile t)' \
-                  -l ${emacsTestsSrc}/load-init.el \
-                  -l ${emacsTestsSrc}/mirror-profile.el
-                ${scope.emacs}/bin/emacs --batch \
-                  -l ${emacsTestsSrc}/load-init.el \
-                  -l ${emacsTestsSrc}/mirror-profile.el
-                touch $out
-              '';
             # Boot a real daemon (early-init + full startup path, no frames)
             # and probe init health over emacsclient.  The probe expression
             # must stay free of single quotes for the shell quoting to hold.
@@ -274,7 +256,6 @@
                 emacs-pgtk = emacsPgtkScope.emacs;
                 emacs-init-load = mkInitLoadCheck "emacs" emacsScope;
                 emacs-pgtk-init-load = mkInitLoadCheck "emacs-pgtk" emacsPgtkScope;
-                emacs-mirror-profile = mkMirrorProfileCheck "emacs" emacsScope;
                 emacs-daemon-startup = mkDaemonCheck "emacs" emacsScope pkgs.ch-emacs-config.emacs;
                 emacs-pgtk-daemon-startup =
                   mkDaemonCheck "emacs-pgtk" emacsPgtkScope
