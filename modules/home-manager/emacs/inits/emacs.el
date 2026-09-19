@@ -1,17 +1,6 @@
 ;; SPDX-License-Identifier: MIT
 ;; init emacs (this runs first)
 
-(defvar ch/mirror-profile nil
-  "Non-nil when this Emacs is a mirror child, not an interactive session.
-A mirror child holds copies of another Emacs's buffers for an agent to
-read and transform, sandboxed, with no user at it.  The inits that
-start external programs or long-lived helpers consult this and stay
-off: language servers (eglot), direnv (envrc), the spell checker
-\(jinx), and the terminal a client frame would open (ghostel).  The
-spawner sets it on the command line before the configuration loads,
-`--eval (setq ch/mirror-profile t)', so one built configuration serves
-both the interactive session and its mirror children.")
-
 (defun ch-emacs-config--truncate-lines ()
   "Stop wrapping long lines in the current buffer."
   (setq truncate-lines t))

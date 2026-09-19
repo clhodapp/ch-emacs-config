@@ -15,15 +15,12 @@
   ;; latter should spawn a terminal: at daemon startup the selected frame
   ;; is the daemon's dumb initial frame, so the terminal would size its
   ;; child programs to it (~80x25) instead of the real client frame.
-  ;; Client frames (GUI or tty) carry the 'client frame parameter.
-  ;; A mirror child opens no terminal at all: it has no user to type
-  ;; into one, and a shell is a process it must not start.
-  (unless (bound-and-true-p ch/mirror-profile)
-    (setq initial-buffer-choice
-          (lambda ()
-            (if (and (daemonp) (null (frame-parameter nil 'client)))
-                (get-scratch-buffer-create)
-              (ghostel)))))
+  ;; Client frames — GUI or tty — carry the 'client frame parameter.
+  (setq initial-buffer-choice
+        (lambda ()
+          (if (and (daemonp) (null (frame-parameter nil 'client)))
+              (get-scratch-buffer-create)
+            (ghostel))))
   (setq ghostel-module-auto-install nil)
   ;; libghostty counts scrollback in terminal page-memory bytes, not plain-text
   ;; bytes. The default 5 MB often retains only ~1–2k lines on a wide window

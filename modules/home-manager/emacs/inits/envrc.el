@@ -1,8 +1,6 @@
 ;; SPDX-License-Identifier: MIT
 ;; init envrc
 (use-package envrc
-  ;; direnv runs a process per buffer; a mirror child has no use for it.
-  :unless (bound-and-true-p ch/mirror-profile)
   :commands
   (envrc-mode
    envrc-file-mode
