@@ -39,8 +39,11 @@ for diagram previews, merman for mermaid, and the language servers
 above. The built init names every one of them by its Nix store path
 (`modules/home-manager/emacs/lib/executables.nix` is the table), so
 the editor behaves the same on a host that has none of them installed,
-and the exported package is a working editor on its own. What the host
-still has to provide is listed under [Host requirements](#host-requirements).
+and the exported package is a working editor on its own. The fonts it
+names are covered the same way, by installation rather than by path
+(`modules/home-manager/emacs/lib/fonts.nix`), since a font resolves by
+family through fontconfig. What the host still has to provide is listed
+under [Host requirements](#host-requirements).
 
 ## Use it
 
@@ -70,6 +73,17 @@ Set one to another package to substitute it, or to `null` to leave
 that program to `PATH` at run time, in which case the host provides
 it.
 
+The fonts work the same way, as `ch-emacs-config.emacs.fonts.<name>`
+(`default`, `symbols`, `emoji`, `emojiFallback`), with the table in
+`modules/home-manager/emacs/lib/fonts.nix`. They cannot be pinned by
+store path the way a program can, because Emacs resolves a font by
+family through fontconfig, so the module installs each one and emits
+the init lines naming it. Setting one to `null` drops both halves:
+the package and the line naming its family, leaving that font to the
+host. `ch-emacs-config.emacs.fontHeight` sets the `:height` of the
+default face, which is worth revisiting when substituting the default
+font, since families differ in how much of the em they fill.
+
 ## Host requirements
 
 The pinned programs cover what the init runs itself. The host still
@@ -85,8 +99,6 @@ provides:
   `/bin/sh`).
 - `nix`, when an `.envrc` uses it: direnv is pinned, what the envrc
   invokes is not.
-- Fonts: Hack Nerd Font for the default face, Noto Color Emoji and
-  Symbola for emoji.
 - Spell-check dictionaries. jinx checks through enchant, which reads
   hunspell dictionaries from its own configuration directory; the
   Home Manager module provisions `en_US` there, the bare package does

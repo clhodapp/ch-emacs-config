@@ -87,6 +87,17 @@ let
     executables = cfg.executables;
   };
 
+  # The fonts the init names. Unlike the programs above, a font cannot be
+  # pinned into the init by store path: Emacs resolves a font by family
+  # through fontconfig, so the package has to be in the profile for the
+  # name to resolve. The module installs whatever this names, which is
+  # why the init carries no font family of its own.
+  fontsLib = import ./lib/fonts.nix { inherit lib pkgs; };
+  fontInitContent = fontsLib.initContent {
+    fonts = cfg.fonts;
+    defaultHeight = cfg.fontHeight;
+  };
+
   jinxBundleEnabled = bundles.jinx.enable or false;
 
   jinxMergePersonalDict = import ./lib/jinx-merge-personal-dict.nix { inherit pkgs; };
@@ -297,6 +308,37 @@ in
       '';
     };
 
+    fonts = lib.mkOption {
+      type = lib.types.submodule {
+        options = lib.mapAttrs (
+          _name: entry:
+          lib.mkOption {
+            type = lib.types.nullOr lib.types.package;
+            inherit (entry) default description;
+            defaultText = lib.literalExpression entry.defaultText;
+          }
+        ) fontsLib.table;
+      };
+      default = { };
+      description = ''
+        The fonts the init names. Each is installed into the profile and
+        its family named in the init, so the editor renders the same on a
+        host that has none of them installed. Set one to null to leave
+        that font to the host, in which case the init stops naming its
+        family too and Emacs falls back to its own default.
+      '';
+    };
+
+    fontHeight = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 120;
+      description = ''
+        The `:height` of the default face, in tenths of a point. Fonts
+        differ in how much of the em they fill, so a size that suits one
+        family may want adjusting for another.
+      '';
+    };
+
     bundles = lib.mkOption {
       type = lib.types.attrsOf (lib.types.submodule ./bundle-module.nix);
       default = { };
@@ -360,6 +402,17 @@ in
         })
         (lib.mkIf (pinnedInitContent != "") {
           ch-emacs-config.emacs.extraInitContent = lib.mkAfter pinnedInitContent;
+        })
+        {
+          # Emacs resolves a font family through fontconfig, which reads
+          # the profile, so every font the init names is installed here.
+          # fontconfig has to be on for the profile's fonts directory to
+          # be scanned at all.
+          home.packages = lib.filter (font: font != null) (lib.attrValues cfg.fonts);
+          fonts.fontconfig.enable = lib.mkDefault (lib.any (font: font != null) (lib.attrValues cfg.fonts));
+        }
+        (lib.mkIf (fontInitContent != "") {
+          ch-emacs-config.emacs.extraInitContent = lib.mkAfter fontInitContent;
         })
         (lib.mkIf daemonBundleEnabled {
           # The launchers live in the profile so the desktop entry, pins,
