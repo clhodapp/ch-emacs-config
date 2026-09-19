@@ -179,6 +179,7 @@ prefix bindings may arrive in any order across init bundles."
   (evil-global-set-key 'motion (kbd "<leader> t f") #'follow-mode)
   (evil-global-set-key 'motion (kbd "<leader> t h") #'hl-line-mode)
   (evil-global-set-key 'motion (kbd "<leader> t l") #'display-line-numbers-mode)
+  (evil-global-set-key 'motion (kbd "<leader> t p") #'variable-pitch-mode)
   (evil-global-set-key 'motion (kbd "<leader> t t") #'toggle-truncate-lines)
   (evil-global-set-key 'motion (kbd "<leader> t v") #'visual-line-mode)
   (evil-global-set-key 'motion (kbd "<leader> t w") #'whitespace-mode)
