@@ -25,6 +25,9 @@
 (declare-function flymake-show-project-diagnostics "flymake")
 
 (use-package eglot
+  ;; A language server is a process per project; a mirror child starts
+  ;; none, and answers no LSP queries.
+  :unless (bound-and-true-p ch/mirror-profile)
   :hook ((nix-ts-mode
           python-base-mode
           markdown-ts-mode
