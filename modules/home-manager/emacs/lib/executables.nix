@@ -89,7 +89,7 @@ in
       description = ''
         merman, the headless mermaid renderer behind mermaid-preview and
         render-dwim, and the mermaid language server in the shared server
-        table. Not in nixpkgs: github:clhodapp/merman exports it.
+        table. Not in nixpkgs: github:clhodapp/merman-nix exports it.
       '';
     };
   };

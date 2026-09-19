@@ -42,7 +42,7 @@
 
     # The mermaid renderer behind render-dwim and mermaid-preview, and
     # the mermaid language server the shared server table spawns.
-    merman.url = "github:clhodapp/merman";
+    merman-nix.url = "github:clhodapp/merman-nix";
 
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };

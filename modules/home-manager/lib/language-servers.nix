@@ -12,7 +12,7 @@
 # same mux could back other combinations.
 #
 # `merman-lsp` needs merman, which is not in nixpkgs, so it has no
-# default: pass the package (github:clhodapp/merman exports it), or
+# default: pass the package (github:clhodapp/merman-nix exports it), or
 # null to leave the entry out. The obvious default, `pkgs.merman.merman`
 # from that flake's overlay, holds only where the caller applied the
 # overlay, and the callers that matter are Home Manager modules

@@ -18,7 +18,7 @@
       # `pkgs.merman.merman`: the headless mermaid renderer behind
       # render-dwim and mermaid-preview, and the mermaid language
       # server the shared table spawns.
-      merman = _name: inputs.merman.overlays.packages;
+      merman-nix = _name: inputs.merman-nix.overlays.packages;
       # MELPA/ELPA package pins only; does not add emacs-git or other
       # tip-of-tree emacsen.
       emacs-packages = _: inputs.emacs-overlay.overlays.package;
@@ -74,7 +74,7 @@
           overlayImports = overlays: [
             overlays.emacs-packages
             overlays.emacs
-            overlays.merman
+            overlays.merman-nix
           ];
         };
         perSystem =
@@ -106,7 +106,7 @@
               inherit (inputs) pr-review ghostel;
             };
             # merman: the mermaid renderer and language server, its own repo.
-            merman = inputs.merman.packages.${system}.merman;
+            merman = inputs.merman-nix.packages.${system}.merman;
             mkEmacsDefault =
               emacsPackage:
               import ../../../modules/home-manager/emacs/lib/package-scope.nix {

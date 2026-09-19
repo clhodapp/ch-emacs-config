@@ -78,8 +78,8 @@ let
     # evaluated against the consumer's package set, which carries no
     # overlay of ours.
     merman = executablesLib.table.merman // {
-      default = closure-inputs.merman.packages.${pkgs.stdenv.hostPlatform.system}.merman;
-      defaultText = "the merman package of this flake's `merman` input";
+      default = closure-inputs.merman-nix.packages.${pkgs.stdenv.hostPlatform.system}.merman;
+      defaultText = "the merman package of this flake's `merman-nix` input";
     };
   };
   pinnedInitContent = executablesLib.initContent {
