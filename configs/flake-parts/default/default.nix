@@ -7,6 +7,8 @@
 }:
 {
 
+  imports = [ inputs.flake-parts.flakeModules.partitions ];
+
   debug = false;
   caisson.nixpkgs.overlays = {
     all = {
@@ -81,7 +83,12 @@
           { pkgs, system, ... }:
           let
             consumerPool = {
-              inherit (inputs) caisson home-manager nixpkgs;
+              inherit (inputs)
+                caisson
+                flake-parts
+                home-manager
+                nixpkgs
+                ;
               parent = self;
             };
             callConsumer =

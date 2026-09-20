@@ -45,6 +45,9 @@
     merman-nix.url = "github:clhodapp/merman-nix";
 
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
   };
 
   outputs =
@@ -53,7 +56,6 @@
       lib = caisson.lib.caisson-core.mkLib {
         inherit inputs;
         systems = [ "x86_64-linux" ];
-        defaultEcosystemSrc.nixpkgs = inputs.nixpkgs;
 
         projects = {
           inherit caisson;
