@@ -61,13 +61,7 @@
           inherit caisson;
         };
 
-        modules = lib: {
-          flake = {
-            default = lib.caisson.flake-parts.mkModule ./modules/flake-parts/default;
-            emacs = lib.caisson.flake-parts.mkModule ./modules/flake-parts/emacs;
-          };
-          homeManager.emacs = lib.caisson.home-manager.mkModule ./modules/home-manager/emacs;
-        };
+        modules = caisson.lib.caisson-core.mkModules ./modules;
       };
     in
     lib.caisson.flake-parts.mkConfiguration {

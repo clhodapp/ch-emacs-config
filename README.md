@@ -27,7 +27,7 @@ index time and never notice a profile switch, so a launcher with baked
 paths eventually drives a daemon that no longer exists.
 
 **Language servers from a shared table.** The eglot configuration
-renders one table of servers (`modules/home-manager/lib/language-servers.nix`,
+renders one table of servers (`lib/language-servers.nix`,
 exported as `languageServerTable`), which any other LSP client
 configured alongside this editor can read, so two clients on one
 project cannot disagree about how to spawn a server.
@@ -37,11 +37,11 @@ Emacs: git for magit and the vc backend, ripgrep for the project grep,
 direnv for envrc, the GitHub CLI for consult-gh, plantuml and graphviz
 for diagram previews, merman for mermaid, and the language servers
 above. The built init names every one of them by its Nix store path
-(`modules/home-manager/emacs/lib/executables.nix` is the table), so
+(`modules/homeManager/emacs/lib/executables.nix` is the table), so
 the editor behaves the same on a host that has none of them installed,
 and the exported package is a working editor on its own. The fonts it
 names are covered the same way, by installation rather than by path
-(`modules/home-manager/emacs/lib/fonts.nix`), since a font resolves by
+(`modules/homeManager/emacs/lib/fonts.nix`), since a font resolves by
 family through fontconfig. What the host still has to provide is listed
 under [Host requirements](#host-requirements).
 
@@ -75,7 +75,7 @@ it.
 
 The fonts work the same way, as `ch-emacs-config.emacs.fonts.<name>`
 (`default`, `symbols`, `emoji`, `emojiFallback`), with the table in
-`modules/home-manager/emacs/lib/fonts.nix`. They cannot be pinned by
+`modules/homeManager/emacs/lib/fonts.nix`. They cannot be pinned by
 store path the way a program can, because Emacs resolves a font by
 family through fontconfig, so the module installs each one and emits
 the init lines naming it. Setting one to `null` drops both halves:

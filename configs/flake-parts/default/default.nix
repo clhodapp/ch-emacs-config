@@ -34,7 +34,7 @@
   # server, shared with any other LSP client configured alongside this
   # editor. Exported rather than reached for by path, so this repo's
   # directory layout is not the contract.
-  flake.languageServerTable = import ../../../modules/home-manager/lib/language-servers.nix;
+  flake.languageServerTable = import ../../../lib/language-servers.nix;
 
   caisson.modules = {
     flake.exported = modules: { inherit (modules) default emacs; };
@@ -107,7 +107,7 @@
             plainConsumerOutputs = callConsumer {
               path = self.outPath + "/tests/integration/plain-consumer";
             };
-            emacsBundleSpec = import ../../../modules/home-manager/emacs/bundles/spec.nix;
+            emacsBundleSpec = import ../../../modules/homeManager/emacs/bundles/spec.nix;
             # Packages consumed as plain (non-flake) inputs; see pkgs/emacs/overrides.nix.
             emacsPackageSources = {
               inherit (inputs) pr-review ghostel;
@@ -116,7 +116,7 @@
             merman = inputs.merman-nix.packages.${system}.merman;
             mkEmacsDefault =
               emacsPackage:
-              import ../../../modules/home-manager/emacs/lib/package-scope.nix {
+              import ../../../modules/homeManager/emacs/lib/package-scope.nix {
                 inherit pkgs emacsPackage;
                 lib = pkgs.lib;
                 bundles = emacsBundleSpec;
@@ -135,9 +135,9 @@
               sources = emacsPackageSources;
               inherit emacsOverlayRev;
             };
-            markdownTableFixSrc = "${self}/modules/home-manager/emacs/packages/markdown-table-fix";
-            renderDwimSrc = "${self}/modules/home-manager/emacs/packages/render-dwim";
-            emacsTestsSrc = "${self}/modules/home-manager/emacs/tests";
+            markdownTableFixSrc = "${self}/modules/homeManager/emacs/packages/markdown-table-fix";
+            renderDwimSrc = "${self}/modules/homeManager/emacs/packages/render-dwim";
+            emacsTestsSrc = "${self}/modules/homeManager/emacs/tests";
             # Batch-load the full init the way real startup does (package
             # activation fires the autoload hook).  load-init.el traps the
             # error-level warnings use-package demotes runtime errors to.
@@ -166,7 +166,7 @@
                 [[ "$result" == '"OK"' ]]
                 touch $out
               '';
-            daemonInitSrc = "${self}/modules/home-manager/emacs/inits/daemon.el";
+            daemonInitSrc = "${self}/modules/homeManager/emacs/inits/daemon.el";
             # Rotation custody regression: a rotated daemon's exit must not
             # delete the canonical socket the new generation owns.  The exit
             # unlink happens through TWO paths — lisp server-stop (server-name)
@@ -367,7 +367,7 @@
                 # idempotence, trailing-newline repair, declared-list hygiene.
                 jinx-merge-personal-dict =
                   let
-                    merge = import ../../../modules/home-manager/emacs/lib/jinx-merge-personal-dict.nix {
+                    merge = import ../../../modules/homeManager/emacs/lib/jinx-merge-personal-dict.nix {
                       inherit pkgs;
                     };
                   in

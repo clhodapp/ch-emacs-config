@@ -2,7 +2,7 @@
 #
 # The external programs the init spawns by name, and the init lines that
 # pin each one to a store path. The language servers keep their own
-# table (../../lib/language-servers.nix); `initContent` renders that
+# table (../../../../lib/language-servers.nix); `initContent` renders that
 # table's eglot wiring too, so one call yields every pin the init needs
 # and the Home Manager module and the exported package cannot drift.
 #
@@ -104,7 +104,7 @@ in
       pinned = name: executables.${name} or null != null;
       exe = name: executables.${name};
 
-      languageServers = import ../../lib/language-servers.nix pkgs {
+      languageServers = import ../../../../lib/language-servers.nix pkgs {
         merman = executables.merman or null;
       };
       lspWorkspaceSettings = lib.foldl' lib.recursiveUpdate { } (
@@ -163,7 +163,7 @@ in
           setAfterLoad "mermaid-preview" "mermaid-preview-command" (mermanCommand "mmdc")
         ))
         (lib.optionalString (on "eglot") ''
-          ;; Language servers from the shared table (../../lib/language-servers.nix),
+          ;; Language servers from the shared table (../../../../lib/language-servers.nix),
           ;; store-pinned for GUI Emacs sessions without HM PATH.
           ;; Prepended entries win over eglot's built-in server table.
           (with-eval-after-load 'eglot
@@ -195,7 +195,7 @@ in
     in
     lib.optionalString (sections != "") ''
       ;; Programs the init spawns, pinned to store paths
-      ;; (modules/home-manager/emacs/lib/executables.nix). Each variable
+      ;; (modules/homeManager/emacs/lib/executables.nix). Each variable
       ;; is set once its package has loaded, so the package's bare-name
       ;; default never wins.
       ${sections}
