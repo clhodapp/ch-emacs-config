@@ -30,11 +30,8 @@
   };
 
   caisson.configInfo.configName = "ch-emacs-config";
-  # The language-server table: one description of how to spawn each
-  # server, shared with any other LSP client configured alongside this
-  # editor. Exported rather than reached for by path, so this repo's
-  # directory layout is not the contract.
-  flake.languageServerTable = import ../../../lib/language-servers.nix;
+
+  caisson.libOverlays.exported = libOverlays: { inherit (libOverlays) default; };
 
   caisson.modules = {
     flake.exported = modules: { inherit (modules) default emacs; };
@@ -107,7 +104,7 @@
             plainConsumerOutputs = callConsumer {
               path = self.outPath + "/tests/integration/plain-consumer";
             };
-            emacsBundleSpec = import ../../../modules/homeManager/emacs/bundles/spec.nix;
+            emacsBundleSpec = closure-lib.ch-emacs-config.bundleSpec;
             # Packages consumed as plain (non-flake) inputs; see pkgs/emacs/overrides.nix.
             emacsPackageSources = {
               inherit (inputs) pr-review ghostel;
@@ -116,7 +113,7 @@
             merman = inputs.merman-nix.packages.${system}.merman;
             mkEmacsDefault =
               emacsPackage:
-              import ../../../modules/homeManager/emacs/lib/package-scope.nix {
+              closure-lib.ch-emacs-config.mkEmacsScope {
                 inherit pkgs emacsPackage;
                 lib = pkgs.lib;
                 bundles = emacsBundleSpec;

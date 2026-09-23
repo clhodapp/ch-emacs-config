@@ -2,9 +2,10 @@
 #
 # The external programs the init spawns by name, and the init lines that
 # pin each one to a store path. The language servers keep their own
-# table (../../../../lib/language-servers.nix); `initContent` renders that
-# table's eglot wiring too, so one call yields every pin the init needs
-# and the Home Manager module and the exported package cannot drift.
+# table, which arrives as `languageServerTable` from
+# `ch-emacs-config.languageServers`; `initContent` renders that table's
+# eglot wiring too, so one call yields every pin the init needs and the
+# Home Manager module and the exported package cannot drift.
 #
 # Each entry is a package or null. A package is closed over: the init
 # sets the variable the consuming package reads its program from, after
@@ -17,7 +18,11 @@
 # Programs any Linux host carries (a POSIX userland, man, the login
 # shell ghostel spawns) are not pinned: a store-pinned `man' would not
 # know the host's page directories, and the shell is the user's.
-{ lib, pkgs }:
+{
+  lib,
+  pkgs,
+  languageServerTable,
+}:
 let
   elispString = s: ''"${s}"'';
 
@@ -104,7 +109,7 @@ in
       pinned = name: executables.${name} or null != null;
       exe = name: executables.${name};
 
-      languageServers = import ../../../../lib/language-servers.nix pkgs {
+      languageServers = languageServerTable pkgs {
         merman = executables.merman or null;
       };
       lspWorkspaceSettings = lib.foldl' lib.recursiveUpdate { } (
@@ -163,7 +168,7 @@ in
           setAfterLoad "mermaid-preview" "mermaid-preview-command" (mermanCommand "mmdc")
         ))
         (lib.optionalString (on "eglot") ''
-          ;; Language servers from the shared table (../../../../lib/language-servers.nix),
+          ;; Language servers from the shared table (ch-emacs-config.languageServers),
           ;; store-pinned for GUI Emacs sessions without HM PATH.
           ;; Prepended entries win over eglot's built-in server table.
           (with-eval-after-load 'eglot

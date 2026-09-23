@@ -7,10 +7,7 @@
 # bundles, whose init and packages come from here rather than from the
 # option, so a consumer can only switch one of those off; a bundle the
 # option defines is taken as it is.
-{ lib }:
-let
-  bundleSpec = import ../bundles/spec.nix;
-in
+{ lib, bundleSpec }:
 userBundles:
 let
   fromSpec = lib.mapAttrs (

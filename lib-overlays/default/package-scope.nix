@@ -20,23 +20,26 @@
 }:
 let
   version = emacsPackage.version or "0";
-  executablesLib = import ./executables.nix { inherit lib pkgs; };
+  executablesLib = import ../../modules/homeManager/emacs/lib/executables.nix {
+    inherit lib pkgs;
+    languageServerTable = import ./language-servers.nix;
+  };
   pinnedInitContent = executablesLib.initContent {
     inherit bundles;
     executables = lib.mapAttrs (_: entry: entry.default) executablesLib.table // executables;
   };
-  emacsOverrides = lib.foldl' lib.composeExtensions (import ../../../../pkgs/emacs/overrides.nix {
+  emacsOverrides = lib.foldl' lib.composeExtensions (import ../../pkgs/emacs/overrides.nix {
     inherit lib pkgs sources;
   }) extraOverrides;
   epkgs = (pkgs.emacsPackagesFor emacsPackage).overrideScope emacsOverrides;
-  bundleLib = import ./bundles.nix { inherit lib; };
+  bundleLib = import ../../modules/homeManager/emacs/lib/bundles.nix { inherit lib; };
+  localScope = import ../../modules/homeManager/emacs/packages/scope.nix {
+    inherit epkgs version;
+  };
   local = lib.fix (
-    final:
-    lib.foldl' (prev: overlay: prev // overlay final prev) (import ../packages/scope.nix {
-      inherit epkgs version;
-    }) localPackageOverlays
+    final: lib.foldl' (prev: overlay: prev // overlay final prev) localScope localPackageOverlays
   );
-  packages = import ../packages {
+  packages = import ../../modules/homeManager/emacs/packages {
     inherit
       epkgs
       pkgs
@@ -49,7 +52,7 @@ let
     bundleInitContent = bundleLib.initContent bundles;
     bundlePackages = bundleLib.packages bundles epkgs local;
   };
-  wrapEmacs = import ./wrap-emacs.nix { inherit lib pkgs; };
+  wrapEmacs = import ../../modules/homeManager/emacs/lib/wrap-emacs.nix { inherit lib pkgs; };
 in
 packages
 // {

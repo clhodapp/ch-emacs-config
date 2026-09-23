@@ -27,8 +27,8 @@ index time and never notice a profile switch, so a launcher with baked
 paths eventually drives a daemon that no longer exists.
 
 **Language servers from a shared table.** The eglot configuration
-renders one table of servers (`lib/language-servers.nix`,
-exported as `languageServerTable`), which any other LSP client
+renders one table of servers, published on the composed library as
+`ch-emacs-config.languageServers`, which any other LSP client
 configured alongside this editor can read, so two clients on one
 project cannot disagree about how to spawn a server.
 

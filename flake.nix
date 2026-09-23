@@ -62,6 +62,8 @@
         };
 
         modules = caisson.lib.caisson-core.mkModules ./modules;
+
+        libOverlays = caisson.lib.caisson-core.mkLibOverlays ./lib-overlays;
       };
     in
     lib.caisson.flake-parts.mkConfiguration {
