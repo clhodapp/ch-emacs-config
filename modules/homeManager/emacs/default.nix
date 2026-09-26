@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-{ closure-inputs, ... }:
+{ closure-inputs, closure-lib, ... }:
 {
   config,
   lib,
@@ -13,8 +13,9 @@ let
   emacsPackageSources = {
     inherit (closure-inputs) pr-review ghostel;
   };
+  bundleSpec = closure-lib.ch-emacs-config.bundleSpec;
   bundleLib = import ./lib/bundles.nix { inherit lib; };
-  resolveBundles = import ./lib/resolve-bundles.nix { inherit lib; };
+  resolveBundles = import ./lib/resolve-bundles.nix { inherit lib bundleSpec; };
   bundles = resolveBundles cfg.bundles;
 
   # This module's own overrides, then whatever a consumer set, then
@@ -72,7 +73,10 @@ let
   # ...) and the init lines pinning each to a store path; the option
   # below exposes the table so a consumer can substitute a package or
   # leave a program to PATH.
-  executablesLib = import ./lib/executables.nix { inherit lib pkgs; };
+  executablesLib = import ./lib/executables.nix {
+    inherit lib pkgs;
+    languageServerTable = closure-lib.ch-emacs-config.languageServers;
+  };
   executablesTable = executablesLib.table // {
     # Taken from the flake input rather than `pkgs`: this module is
     # evaluated against the consumer's package set, which carries no
@@ -350,7 +354,7 @@ in
   };
 
   imports = [
-    ./bundles/default.nix
+    (import ./lib/bundle-options.nix { inherit bundleSpec; })
   ];
 
   config = lib.mkMerge [
