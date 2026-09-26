@@ -55,6 +55,7 @@
     let
       lib = caisson.lib.caisson-core.mkLib {
         inherit inputs;
+        namespace = "ch-emacs-config";
         systems = [ "x86_64-linux" ];
 
         projects = {
@@ -67,7 +68,6 @@
       };
     in
     lib.caisson.flake-parts.mkConfiguration {
-      name = "ch-emacs-config";
       configModule = lib.caisson.flake-parts.mkModule ./configs/flake-parts/default;
     };
 
