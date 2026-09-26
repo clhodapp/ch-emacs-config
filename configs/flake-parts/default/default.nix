@@ -29,8 +29,6 @@
     exported = overlays: { inherit (overlays) emacs emacs-packages; };
   };
 
-  caisson.configInfo.configName = "ch-emacs-config";
-
   caisson.libOverlays.exported = libOverlays: { inherit (libOverlays) default; };
 
   caisson.modules = {
