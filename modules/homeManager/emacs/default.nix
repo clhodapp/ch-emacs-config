@@ -194,9 +194,10 @@ in
       default =
         pkgs.ch-emacs-config.emacs or (throw ''
           ch-emacs-config.emacs.package has no default because `pkgs` lacks
-          `pkgs.ch-emacs-config.emacs`: apply this flake's `overlays.emacs` to
-          the nixpkgs instance home-manager uses, or set the option to an
-          Emacs package explicitly.
+          `pkgs.ch-emacs-config.emacs`: apply this flake's `overlays.default`
+          (a caisson consumer: list the flake in `projects`) to the nixpkgs
+          instance home-manager uses, or set the option to an Emacs package
+          explicitly.
         '');
       defaultText = lib.literalExpression "pkgs.ch-emacs-config.emacs";
       description = ''
@@ -204,7 +205,7 @@ in
         package version. Set this before the module builds `programs.emacs`.
 
         The default is the Emacs this configuration is validated against,
-        provided by the flake's `overlays.emacs` as `pkgs.ch-emacs-config.emacs`
+        provided by the flake's `overlays.default` as `pkgs.ch-emacs-config.emacs`
         (the same overlay also provides `emacs-pgtk` and `emacs-nox`).
       '';
     };

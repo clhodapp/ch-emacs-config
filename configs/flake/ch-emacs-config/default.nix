@@ -10,29 +10,27 @@
   imports = [ inputs.flake-parts.flakeModules.partitions ];
 
   debug = false;
+  # The Emacs base packages and the ELPA/MELPA pins are this flake's
+  # package overlay registry entries (pkg-overlays/, registered on mkLib):
+  # every package set applies `default`, which imports `emacs-packages`,
+  # and the flake exports both, as `pkgOverlays` for a caisson consumer's
+  # `projects` and as plain `overlays` for any other.
   caisson.nixpkgs.overlays = {
     all = {
-      # `pkgs.ch-emacs-config.emacs`, `.emacs-pgtk`, `.emacs-nox`: the Emacs
-      # base packages the configuration is validated against
-      # (pkgs/ch-emacs-config/emacs-base.nix picks the newest supported
-      # major nixpkgs carries as a final release).
-      emacs = closure-lib.caisson.nixpkgs.mkPackagesOverlay ../../../pkgs/ch-emacs-config;
       # `pkgs.merman-nix.merman-preview`: the headless mermaid renderer
       # behind render-dwim and mermaid-preview, and the mermaid language
-      # server the shared table spawns.
+      # server the shared table spawns. merman-nix's overlay, applied
+      # here and not exported.
       merman-nix = _name: inputs.merman-nix.overlays.packages;
-      # MELPA/ELPA package pins only; does not add emacs-git or other
-      # tip-of-tree emacsen.
-      emacs-packages = _: inputs.emacs-overlay.overlays.package;
     };
     export.enabled = true;
-    exported = overlays: { inherit (overlays) emacs emacs-packages; };
+    exported = _overlays: { };
   };
 
   caisson.libOverlays.exported = libOverlays: { inherit (libOverlays) default; };
 
   caisson.modules = {
-    flake.exported = modules: { inherit (modules) default emacs; };
+    flake.exported = modules: { inherit (modules) default; };
     homeManager.exported = modules: { inherit (modules) emacs; };
   };
 
@@ -44,7 +42,7 @@
   partitionedAttrs.formatter = "formatter";
 
   partitions.formatter = {
-    extraInputs = lib.caisson-core.partitionExtraInputs ../../../tests/dependencies;
+    extraInputs = (lib.caisson-core.pins.flake-compat ../../../tests/dependencies).sources;
     module =
       { inputs, ... }:
       {
@@ -57,22 +55,18 @@
   };
 
   partitions.checks = {
-    extraInputs = lib.caisson-core.partitionExtraInputs ../../../tests/dependencies;
+    extraInputs = (lib.caisson-core.pins.flake-compat ../../../tests/dependencies).sources;
     module =
       { inputs, self, ... }:
       {
         imports = [ inputs.treefmt-nix.flakeModule ];
-        # The package set the checks build against: the ELPA pins and the
-        # Emacs base selection, in the order consumers are told to apply
-        # them. The checks then validate exactly what the overlays
-        # propose.
+        # The package set the checks build against: the registry's default
+        # selection (`default`, after the `emacs-packages` entry it
+        # imports), then merman-nix. The checks then validate exactly what
+        # a consumer applying `ch-emacs-config/default` gets.
         caisson.nixpkgs.pkgSets.pkgs = {
           pkgFunction = import inputs.nixpkgs;
-          overlayImports = overlays: [
-            overlays.emacs-packages
-            overlays.emacs
-            overlays.merman-nix
-          ];
+          overlayImports = overlays: [ overlays.merman-nix ];
         };
         perSystem =
           { pkgs, system, ... }:
