@@ -26,13 +26,15 @@
   inputs = {
     caisson.url = "github:nix-caisson/caisson";
 
-    # Plain Emacs package repositories (no flake); pkgs/emacs/overrides.nix
+    # Plain Emacs package repositories (no flake); the library's
+    # emacsPackageOverrides (lib-overlays/default/emacs-packages/overrides.nix)
     # builds them into the Emacs package set.
     pr-review.url = "github:clhodapp/emacs-pr-review";
     pr-review.flake = false;
     # ghostel ahead of the nixpkgs/emacs-overlay primary, which still ships
     # 0.53.0; a secondary pin for that one package, on an upstream release
-    # tag.  pkgs/emacs/overrides.nix explains it and names when it goes.
+    # tag.  lib-overlays/default/emacs-packages/overrides.nix explains it
+    # and names when it goes.
     ghostel.url = "github:dakra/ghostel/v0.56.0";
     ghostel.flake = false;
 
@@ -63,12 +65,13 @@
         };
 
         modules = caisson.lib.caisson-core.mkModules ./modules;
+        configs = caisson.lib.caisson-core.mkModules ./configs;
 
         libOverlays = caisson.lib.caisson-core.mkLibOverlays ./lib-overlays;
       };
     in
     lib.caisson.flake-parts.mkConfiguration {
-      configModule = lib.caisson.flake-parts.mkModule ./configs/flake-parts/default;
+      configModule = lib.caisson-core.configs.flake.ch-emacs-config;
     };
 
 }

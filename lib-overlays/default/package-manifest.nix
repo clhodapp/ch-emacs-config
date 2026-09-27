@@ -9,12 +9,12 @@
 }:
 let
   version = emacsPackage.version or "0";
-  emacsOverrides = import ../../../../pkgs/emacs/overrides.nix {
+  emacsOverrides = import ./emacs-packages/overrides.nix {
     inherit lib pkgs sources;
   };
   epkgs = (pkgs.emacsPackagesFor emacsPackage).overrideScope emacsOverrides;
   bundleLib = import ./bundles.nix { inherit lib; };
-  local = import ../packages/scope.nix { inherit epkgs version; };
+  local = import ./packages/scope.nix { inherit epkgs version; };
 
   localPnames = [
     "ch-emacs-config-default"

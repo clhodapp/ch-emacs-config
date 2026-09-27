@@ -10,7 +10,7 @@ nixpkgs ships a new major as `emacs<NN>-*` before it moves the unversioned `emac
 
 ## Where it is exposed
 
-- `overlays.emacs` (registered as `caisson.nixpkgs.overlays.all.emacs` in `configs/flake-parts/default/default.nix` and exported) adds `pkgs.ch-emacs-config.emacs`, `.emacs-pgtk`, `.emacs-nox`.
+- `overlays.emacs` (registered as `caisson.nixpkgs.overlays.all.emacs` in `configs/flake/ch-emacs-config/default.nix` and exported) adds `pkgs.ch-emacs-config.emacs`, `.emacs-pgtk`, `.emacs-nox`.
 - `modules.homeManager.emacs` defaults `ch-emacs-config.emacs.package` to `pkgs.ch-emacs-config.emacs`, with a `throw` that names the overlay when it is absent. The module itself uses only standard module arguments; it does not depend on the framework.
 - `flakeModules.emacs` registers `overlays.emacs` and `overlays.emacs-packages` into a flake-parts consumer's `caisson.nixpkgs.overlays.all` registry (names `ch-emacs-config-emacs`, `ch-emacs-config-emacs-packages`). It imports only caisson's `flakeModules.nixpkgs-interface`. The registered values are the already-exported overlays, bound to this flake's name: the registry applies the consumer's `configName` to each entry, so registering the raw `mkPackagesOverlay` function would put the packages under `pkgs.<consumer>`.
 

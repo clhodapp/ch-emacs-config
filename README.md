@@ -37,7 +37,7 @@ Emacs: git for magit and the vc backend, ripgrep for the project grep,
 direnv for envrc, the GitHub CLI for consult-gh, plantuml and graphviz
 for diagram previews, merman for mermaid, and the language servers
 above. The built init names every one of them by its Nix store path
-(`modules/homeManager/emacs/lib/executables.nix` is the table), so
+(`lib-overlays/default/executables.nix` is the table), so
 the editor behaves the same on a host that has none of them installed,
 and the exported package is a working editor on its own. The fonts it
 names are covered the same way, by installation rather than by path

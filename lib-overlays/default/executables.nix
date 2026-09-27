@@ -200,7 +200,7 @@ in
     in
     lib.optionalString (sections != "") ''
       ;; Programs the init spawns, pinned to store paths
-      ;; (modules/homeManager/emacs/lib/executables.nix). Each variable
+      ;; (lib-overlays/default/executables.nix). Each variable
       ;; is set once its package has loaded, so the package's bare-name
       ;; default never wins.
       ${sections}
