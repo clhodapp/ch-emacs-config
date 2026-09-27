@@ -17,8 +17,8 @@
       # (pkgs/ch-emacs-config/emacs-base.nix picks the newest supported
       # major nixpkgs carries as a final release).
       emacs = closure-lib.caisson.nixpkgs.mkPackagesOverlay ../../../pkgs/ch-emacs-config;
-      # `pkgs.merman.merman`: the headless mermaid renderer behind
-      # render-dwim and mermaid-preview, and the mermaid language
+      # `pkgs.merman-nix.merman-preview`: the headless mermaid renderer
+      # behind render-dwim and mermaid-preview, and the mermaid language
       # server the shared table spawns.
       merman-nix = _name: inputs.merman-nix.overlays.packages;
       # MELPA/ELPA package pins only; does not add emacs-git or other
@@ -108,8 +108,11 @@
             emacsPackageSources = {
               inherit (inputs) pr-review ghostel;
             };
-            # merman: the mermaid renderer and language server, its own repo.
-            merman = inputs.merman-nix.packages.${system}.merman;
+            # merman: the mermaid renderer and language server, its own
+            # repo. The preview line: the language server and the mmdc
+            # subcommand exist from 0.8.0 on, and 0.8.0 has only
+            # prereleases so far.
+            merman = inputs.merman-nix.packages.${system}.merman-preview;
             mkEmacsDefault =
               emacsPackage:
               closure-lib.ch-emacs-config.mkEmacsScope {
