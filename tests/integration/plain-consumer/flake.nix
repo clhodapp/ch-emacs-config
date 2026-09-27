@@ -27,10 +27,9 @@
       system = "x86_64-linux";
       pkgs = import nixpkgs {
         inherit system;
-        overlays = [
-          parent.overlays.emacs-packages
-          parent.overlays.emacs
-        ];
+        # `overlays.default` is the Emacs base packages with the
+        # ELPA/MELPA pins it imports composed in.
+        overlays = [ parent.overlays.default ];
       };
       home = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;

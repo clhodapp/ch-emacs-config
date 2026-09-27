@@ -13,7 +13,7 @@
     inputs@{ caisson, ... }:
     let
       lib = caisson.lib.caisson-core.mkLib {
-        inherit inputs;
+        inherit (caisson.lib.caisson-core.pins.flake inputs) sources root;
         projects = {
           inherit caisson;
         };

@@ -56,7 +56,7 @@
     inputs@{ caisson, ... }:
     let
       lib = caisson.lib.caisson-core.mkLib {
-        inherit inputs;
+        inherit (caisson.lib.caisson-core.pins.flake inputs) sources root;
         namespace = "ch-emacs-config";
         systems = [ "x86_64-linux" ];
 
@@ -68,6 +68,7 @@
         configs = caisson.lib.caisson-core.mkModules ./configs;
 
         libOverlays = caisson.lib.caisson-core.mkLibOverlays ./lib-overlays;
+        pkgOverlays = caisson.lib.caisson-core.mkPkgOverlays ./pkg-overlays;
       };
     in
     lib.caisson.flake-parts.mkConfiguration {
