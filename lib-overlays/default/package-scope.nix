@@ -12,7 +12,7 @@
   extraOverrides ? [ ],
   localPackageOverlays ? [ ],
   # Programs the init spawns, pinned into it as store paths: an attrset
-  # over the names in lib/executables.nix, each a package or null (leave
+  # over the names in executables.nix, each a package or null (leave
   # that program to PATH). Unnamed entries take the table's defaults;
   # merman has none, so an Emacs built without it resolves the mermaid
   # tooling from PATH.
@@ -20,7 +20,7 @@
 }:
 let
   version = emacsPackage.version or "0";
-  executablesLib = import ../../modules/homeManager/emacs/lib/executables.nix {
+  executablesLib = import ./executables.nix {
     inherit lib pkgs;
     languageServerTable = import ./language-servers.nix;
   };
@@ -28,18 +28,18 @@ let
     inherit bundles;
     executables = lib.mapAttrs (_: entry: entry.default) executablesLib.table // executables;
   };
-  emacsOverrides = lib.foldl' lib.composeExtensions (import ../../pkgs/emacs/overrides.nix {
+  emacsOverrides = lib.foldl' lib.composeExtensions (import ./emacs-packages/overrides.nix {
     inherit lib pkgs sources;
   }) extraOverrides;
   epkgs = (pkgs.emacsPackagesFor emacsPackage).overrideScope emacsOverrides;
-  bundleLib = import ../../modules/homeManager/emacs/lib/bundles.nix { inherit lib; };
-  localScope = import ../../modules/homeManager/emacs/packages/scope.nix {
+  bundleLib = import ./bundles.nix { inherit lib; };
+  localScope = import ./packages/scope.nix {
     inherit epkgs version;
   };
   local = lib.fix (
     final: lib.foldl' (prev: overlay: prev // overlay final prev) localScope localPackageOverlays
   );
-  packages = import ../../modules/homeManager/emacs/packages {
+  packages = import ./packages {
     inherit
       epkgs
       pkgs
@@ -52,7 +52,7 @@ let
     bundleInitContent = bundleLib.initContent bundles;
     bundlePackages = bundleLib.packages bundles epkgs local;
   };
-  wrapEmacs = import ../../modules/homeManager/emacs/lib/wrap-emacs.nix { inherit lib pkgs; };
+  wrapEmacs = import ./wrap-emacs.nix { inherit lib pkgs; };
 in
 packages
 // {

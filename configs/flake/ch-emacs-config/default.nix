@@ -103,7 +103,8 @@
               path = self.outPath + "/tests/integration/plain-consumer";
             };
             emacsBundleSpec = closure-lib.ch-emacs-config.bundleSpec;
-            # Packages consumed as plain (non-flake) inputs; see pkgs/emacs/overrides.nix.
+            # Packages consumed as plain (non-flake) inputs; the library's
+            # `emacsPackageOverrides` builds them into the package set.
             emacsPackageSources = {
               inherit (inputs) pr-review ghostel;
             };
@@ -124,15 +125,24 @@
             emacsScope = mkEmacsDefault pkgs.ch-emacs-config.emacs;
             emacsPgtkScope = mkEmacsDefault pkgs.ch-emacs-config.emacs-pgtk;
             emacsOverlayRev = inputs.emacs-overlay.rev or inputs.emacs-overlay.sourceInfo.rev or null;
-            emacsPackageManifest = pkgs.callPackage ../../../pkgs/emacs/manifest-package.nix {
-              emacsPackage = pkgs.ch-emacs-config.emacs;
-              bundles = emacsBundleSpec;
-              sources = emacsPackageSources;
-              inherit emacsOverlayRev;
-            };
-            markdownTableFixSrc = "${self}/modules/homeManager/emacs/packages/markdown-table-fix";
-            renderDwimSrc = "${self}/modules/homeManager/emacs/packages/render-dwim";
-            emacsTestsSrc = "${self}/modules/homeManager/emacs/tests";
+            # The package manifest of the exported Emacs, written out as
+            # JSON: what is installed and at which version.
+            emacsPackageManifest = pkgs.writeText "emacs-package-manifest.json" (
+              builtins.toJSON (
+                closure-lib.ch-emacs-config.mkPackageManifest {
+                  inherit pkgs emacsOverlayRev;
+                  lib = pkgs.lib;
+                  emacsPackage = pkgs.ch-emacs-config.emacs;
+                  bundles = emacsBundleSpec;
+                  sources = emacsPackageSources;
+                }
+              )
+            );
+            markdownTableFixSrc = closure-lib.ch-emacs-config.packageSources.markdown-table-fix;
+            renderDwimSrc = closure-lib.ch-emacs-config.packageSources.render-dwim;
+            # The editor's own tests: elisp and scripts the checks below
+            # run against a built Emacs, beside the other test trees.
+            emacsTestsSrc = self.outPath + "/tests/emacs";
             # Batch-load the full init the way real startup does (package
             # activation fires the autoload hook).  load-init.el traps the
             # error-level warnings use-package demotes runtime errors to.
@@ -161,7 +171,7 @@
                 [[ "$result" == '"OK"' ]]
                 touch $out
               '';
-            daemonInitSrc = "${self}/modules/homeManager/emacs/inits/daemon.el";
+            daemonInitSrc = closure-lib.ch-emacs-config.initFiles."daemon.el";
             # Rotation custody regression: a rotated daemon's exit must not
             # delete the canonical socket the new generation owns.  The exit
             # unlink happens through TWO paths — lisp server-stop (server-name)
@@ -362,7 +372,7 @@
                 # idempotence, trailing-newline repair, declared-list hygiene.
                 jinx-merge-personal-dict =
                   let
-                    merge = import ../../../modules/homeManager/emacs/lib/jinx-merge-personal-dict.nix {
+                    merge = closure-lib.ch-emacs-config.mkJinxMergePersonalDict {
                       inherit pkgs;
                     };
                   in

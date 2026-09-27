@@ -9,12 +9,16 @@
 }:
 let
   cfg = config.ch-emacs-config.emacs;
-  # Packages consumed as plain (non-flake) inputs; see pkgs/emacs/overrides.nix.
+  # Packages consumed as plain (non-flake) inputs; the library's
+  # `emacsPackageOverrides` builds them into the package set.
   emacsPackageSources = {
     inherit (closure-inputs) pr-review ghostel;
   };
-  bundleSpec = closure-lib.ch-emacs-config.bundleSpec;
-  bundleLib = import ./lib/bundles.nix { inherit lib; };
+  # The pieces the editor is built from come from the published library,
+  # the same ones the exported package is built from.
+  emacsLib = closure-lib.ch-emacs-config;
+  bundleSpec = emacsLib.bundleSpec;
+  bundleLib = emacsLib.mkBundleLib { inherit lib; };
   resolveBundles = import ./lib/resolve-bundles.nix { inherit lib bundleSpec; };
   bundles = resolveBundles cfg.bundles;
 
@@ -24,7 +28,7 @@ let
   # package added by a layer compiles against a different Emacs package
   # set than it loads into.
   composedOverrides = lib.foldl' lib.composeExtensions (lib.composeExtensions cfg.overrides (
-    import ../../../pkgs/emacs/overrides.nix {
+    emacsLib.emacsPackageOverrides {
       inherit lib pkgs;
       sources = emacsPackageSources;
     }
@@ -40,11 +44,11 @@ let
       # an added package can depend on another added package.
       local = lib.fix (
         final:
-        lib.foldl' (prev: overlay: prev // overlay final prev) (import ./packages/scope.nix {
+        lib.foldl' (prev: overlay: prev // overlay final prev) (emacsLib.mkLocalPackageScope {
           inherit epkgs version;
         }) cfg.localPackageOverlays
       );
-      packages = import ./packages {
+      packages = emacsLib.mkPackages {
         inherit
           epkgs
           pkgs
@@ -73,9 +77,9 @@ let
   # ...) and the init lines pinning each to a store path; the option
   # below exposes the table so a consumer can substitute a package or
   # leave a program to PATH.
-  executablesLib = import ./lib/executables.nix {
+  executablesLib = emacsLib.mkExecutablesLib {
     inherit lib pkgs;
-    languageServerTable = closure-lib.ch-emacs-config.languageServers;
+    languageServerTable = emacsLib.languageServers;
   };
   executablesTable = executablesLib.table // {
     # Taken from the flake input rather than `pkgs`: this module is
@@ -104,7 +108,7 @@ let
 
   jinxBundleEnabled = bundles.jinx.enable or false;
 
-  jinxMergePersonalDict = import ./lib/jinx-merge-personal-dict.nix { inherit pkgs; };
+  jinxMergePersonalDict = emacsLib.mkJinxMergePersonalDict { inherit pkgs; };
 
   jinxDeclaredWords = pkgs.writeText "jinx-declared-words" (
     lib.concatMapStrings (word: word + "\n") (lib.unique cfg.jinxPersonalWords)
@@ -112,7 +116,7 @@ let
 
   consultGhBundleEnabled = bundles.consult-gh.enable or false;
 
-  earlyInitEl = builtins.readFile ./emacs-init-dir/early-init.el;
+  earlyInitEl = emacsLib.earlyInitEl;
 
   # Build-time fallback for the launchers' runtime hash derivation:
   # 12-char store hash of this generation's Emacs — the systemd
