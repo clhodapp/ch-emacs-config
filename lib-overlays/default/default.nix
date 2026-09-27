@@ -9,17 +9,29 @@
 # Everything the published values are built from lives in this
 # directory: the executables and bundle helpers, the in-tree Emacs
 # packages and their builder, the init files, the Emacs package-set
-# overrides, and the early-init file. The Home Manager module reads the
+# overrides, the early-init file, and the Emacs base packages. The Home
+# Manager module, the flake module and the flake configuration read the
 # same pieces back through `lib.ch-emacs-config`, so nothing under
 # `modules/` is read from outside the module and nothing here is read
 # by path from another directory.
-{ ... }:
+{ closure-lib, ... }:
 {
 
   imports = [ ];
 
   overlay = _final: prev: {
     ch-emacs-config = (prev.ch-emacs-config or { }) // {
+      # The package overlay adding `pkgs.ch-emacs-config.emacs`,
+      # `.emacs-pgtk` and `.emacs-nox`, the Emacs base packages this
+      # configuration is validated against (emacs-base/emacs-base.nix
+      # picks the newest supported major nixpkgs carries as a final
+      # release). It is bound to the `ch-emacs-config` scope name here,
+      # so a consumer that registers it gets the packages under that
+      # name and not under its own namespace. The flake configuration
+      # registers it for this flake and the flake module for a
+      # consumer, so both apply one definition.
+      packagesOverlay = closure-lib.caisson.nixpkgs.mkPackagesOverlay ./emacs-base "ch-emacs-config";
+
       # The Emacs package scope: an editor built from a bundle
       # selection, the init that configures it, and the programs the
       # init spawns pinned as store paths. A layer that adds bundles

@@ -13,10 +13,9 @@
   caisson.nixpkgs.overlays = {
     all = {
       # `pkgs.ch-emacs-config.emacs`, `.emacs-pgtk`, `.emacs-nox`: the Emacs
-      # base packages the configuration is validated against
-      # (pkgs/ch-emacs-config/emacs-base.nix picks the newest supported
-      # major nixpkgs carries as a final release).
-      emacs = closure-lib.caisson.nixpkgs.mkPackagesOverlay ../../../pkgs/ch-emacs-config;
+      # base packages the configuration is validated against, from the
+      # library, already bound to the `ch-emacs-config` scope name.
+      emacs = _name: closure-lib.ch-emacs-config.packagesOverlay;
       # `pkgs.merman-nix.merman-preview`: the headless mermaid renderer
       # behind render-dwim and mermaid-preview, and the mermaid language
       # server the shared table spawns.
@@ -44,7 +43,7 @@
   partitionedAttrs.formatter = "formatter";
 
   partitions.formatter = {
-    extraInputs = lib.caisson-core.partitionExtraInputs ../../../tests/dependencies;
+    extraInputs = (lib.caisson-core.pins.flake-compat ../../../tests/dependencies).sources;
     module =
       { inputs, ... }:
       {
@@ -57,7 +56,7 @@
   };
 
   partitions.checks = {
-    extraInputs = lib.caisson-core.partitionExtraInputs ../../../tests/dependencies;
+    extraInputs = (lib.caisson-core.pins.flake-compat ../../../tests/dependencies).sources;
     module =
       { inputs, self, ... }:
       {

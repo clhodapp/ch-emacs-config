@@ -4,15 +4,15 @@ How the flake decides which Emacs the configuration is built against, and how th
 
 ## The selection
 
-`pkgs/ch-emacs-config/emacs-base.nix` holds a list of supported majors, newest first. For a toolkit variant (`""`, `-pgtk`, `-nox`) it returns the first `emacs<major><variant>` attribute the nixpkgs instance carries as a final release. "Final release" means the version string is `<major>.<minor>` with a non-zero minor: pretests are `<major>.0.<nn>` and release candidates carry an `-rcN` suffix, and Nix's `compareVersions` orders both above the release they precede, so a plain `versionAtLeast` would accept them. If no listed major is present, evaluation fails with a message naming the list.
+`lib-overlays/default/emacs-base/emacs-base.nix` holds a list of supported majors, newest first. For a toolkit variant (`""`, `-pgtk`, `-nox`) it returns the first `emacs<major><variant>` attribute the nixpkgs instance carries as a final release. "Final release" means the version string is `<major>.<minor>` with a non-zero minor: pretests are `<major>.0.<nn>` and release candidates carry an `-rcN` suffix, and Nix's `compareVersions` orders both above the release they precede, so a plain `versionAtLeast` would accept them. If no listed major is present, evaluation fails with a message naming the list.
 
 nixpkgs ships a new major as `emacs<NN>-*` before it moves the unversioned `emacs-*` attributes, which is why the selection names majors rather than reading `pkgs.emacs`. A major joins the list once the configuration byte-compiles under it (the config package is compiled with `byte-compile-error-on-warn`, so obsolescence warnings are fatal) and the checks pass.
 
 ## Where it is exposed
 
-- `overlays.emacs` (registered as `caisson.nixpkgs.overlays.all.emacs` in `configs/flake/ch-emacs-config/default.nix` and exported) adds `pkgs.ch-emacs-config.emacs`, `.emacs-pgtk`, `.emacs-nox`.
+- `lib.ch-emacs-config.packagesOverlay` is the overlay that adds `pkgs.ch-emacs-config.emacs`, `.emacs-pgtk`, `.emacs-nox`, bound to the `ch-emacs-config` scope name. The flake configuration registers it as `caisson.nixpkgs.overlays.all.emacs` and exports it as `overlays.emacs`.
 - `modules.homeManager.emacs` defaults `ch-emacs-config.emacs.package` to `pkgs.ch-emacs-config.emacs`, with a `throw` that names the overlay when it is absent. The module itself uses only standard module arguments; it does not depend on the framework.
-- `flakeModules.emacs` registers `overlays.emacs` and `overlays.emacs-packages` into a flake-parts consumer's `caisson.nixpkgs.overlays.all` registry (names `ch-emacs-config-emacs`, `ch-emacs-config-emacs-packages`). It imports only caisson's `flakeModules.nixpkgs-interface`. The registered values are the already-exported overlays, bound to this flake's name: the registry applies the consumer's `configName` to each entry, so registering the raw `mkPackagesOverlay` function would put the packages under `pkgs.<consumer>`.
+- `flakeModules.emacs` registers the same two overlays into a flake-parts consumer's `caisson.nixpkgs.overlays.all` registry (names `ch-emacs-config-emacs`, `ch-emacs-config-emacs-packages`): `lib.ch-emacs-config.packagesOverlay`, and emacs-overlay's package overlay from the pinned sources. It imports only caisson's `flakeModules.nixpkgs-interface`. The registry applies the consumer's namespace to each entry, so each registered value ignores the name it is given; registering the raw `mkPackagesOverlay` function would put the packages under `pkgs.<consumer>`.
 
 ## Why the checks build against the overlay
 
