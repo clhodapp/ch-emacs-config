@@ -54,7 +54,7 @@
   ;; in the init would make this file depend on something it cannot
   ;; provide.  The Home Manager module installs each font and emits the
   ;; lines naming it, from the table in
-  ;; modules/home-manager/emacs/lib/fonts.nix.
+  ;; modules/homeManager/emacs/lib/fonts.nix.
 
   :config
   ;; Truncate in text buffers only: prose files whose line breaks are

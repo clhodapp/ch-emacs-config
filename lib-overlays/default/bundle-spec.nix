@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 let
-  readInit = name: builtins.readFile ../inits/${name};
+  readInit = name: builtins.readFile ../../modules/homeManager/emacs/inits/${name};
 
   treesitGrammars =
     epkgs:

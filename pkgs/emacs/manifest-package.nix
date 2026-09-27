@@ -8,7 +8,7 @@
   emacsOverlayRev ? null,
 }:
 let
-  manifest = import ../../modules/home-manager/emacs/lib/package-manifest.nix {
+  manifest = import ../../modules/homeManager/emacs/lib/package-manifest.nix {
     inherit
       lib
       pkgs

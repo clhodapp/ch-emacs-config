@@ -95,7 +95,7 @@ in
       ];
     in
     lib.optionalString (sections != "") ''
-      ;; Fonts the init names (modules/home-manager/emacs/lib/fonts.nix).
+      ;; Fonts the init names (modules/homeManager/emacs/lib/fonts.nix).
       ;; The Home Manager module installs each one it names here, so a
       ;; family named below resolves through fontconfig.
       ${sections}
