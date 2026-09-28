@@ -62,6 +62,10 @@
 
         projects = {
           inherit caisson;
+          # `pkgs.merman-nix.merman-preview`, the headless mermaid renderer
+          # behind render-dwim and mermaid-preview and the mermaid language
+          # server the shared table spawns, arrives as `merman-nix/default`.
+          merman-nix = inputs.merman-nix;
         };
 
         modules = caisson.lib.caisson-core.mkModules ./modules;
