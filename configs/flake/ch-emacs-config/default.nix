@@ -14,18 +14,9 @@
   # package overlay registry entries (pkg-overlays/, registered on mkLib):
   # every package set applies `default`, which imports `emacs-packages`,
   # and the flake exports both, as `pkgOverlays` for a caisson consumer's
-  # `projects` and as plain `overlays` for any other.
-  caisson.nixpkgs.overlays = {
-    all = {
-      # `pkgs.merman-nix.merman-preview`: the headless mermaid renderer
-      # behind render-dwim and mermaid-preview, and the mermaid language
-      # server the shared table spawns. merman-nix's overlay, applied
-      # here and not exported.
-      merman-nix = _name: inputs.merman-nix.overlays.packages;
-    };
-    export.enabled = true;
-    exported = _overlays: { };
-  };
+  # `projects` and as plain `overlays` for any other. merman-nix's
+  # `default` entry arrives through `projects` and is applied, not
+  # exported.
 
   caisson.libOverlays.exported = libOverlays: { inherit (libOverlays) default; };
 
@@ -61,13 +52,10 @@
       {
         imports = [ inputs.treefmt-nix.flakeModule ];
         # The package set the checks build against: the registry's default
-        # selection (`default`, after the `emacs-packages` entry it
-        # imports), then merman-nix. The checks then validate exactly what
-        # a consumer applying `ch-emacs-config/default` gets.
-        caisson.nixpkgs.pkgSets.pkgs = {
-          pkgFunction = import inputs.nixpkgs;
-          overlayImports = overlays: [ overlays.merman-nix ];
-        };
+        # selection, `default` after the `emacs-packages` entry it imports,
+        # and `merman-nix/default`. The checks then validate exactly what a
+        # consumer applying `ch-emacs-config/default` gets.
+        caisson.nixpkgs.pkgSets.pkgs.pkgFunction = import inputs.nixpkgs;
         perSystem =
           { pkgs, system, ... }:
           let
