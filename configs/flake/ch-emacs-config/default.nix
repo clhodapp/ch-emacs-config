@@ -39,8 +39,8 @@
       {
         imports = [ inputs.treefmt-nix.flakeModule ];
         # treefmt reads the perSystem `pkgs`, which caisson's nixpkgs
-        # module supplies from this package set.
-        caisson.nixpkgs.pkgSets.pkgs.pkgFunction = import inputs.nixpkgs;
+        # module supplies from the `default` package config declared on
+        # mkLib (configs/nixpkgsConfig/default).
         perSystem.treefmt.programs.nixfmt.enable = true;
       };
   };
@@ -51,11 +51,11 @@
       { inputs, self, ... }:
       {
         imports = [ inputs.treefmt-nix.flakeModule ];
-        # The package set the checks build against: the registry's default
-        # selection, `default` after the `emacs-packages` entry it imports,
+        # The package set the checks build against is the `default`
+        # package config declared on mkLib, with the registry's default
+        # selection: `default` after the `emacs-packages` entry it imports,
         # and `merman-nix/default`. The checks then validate exactly what a
         # consumer applying `ch-emacs-config/default` gets.
-        caisson.nixpkgs.pkgSets.pkgs.pkgFunction = import inputs.nixpkgs;
         perSystem =
           { pkgs, system, ... }:
           let
