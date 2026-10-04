@@ -68,12 +68,12 @@
           merman-nix = inputs.merman-nix;
         };
 
-        modules = caisson.lib.caisson-core.mkModules ./modules;
-        configs = caisson.lib.caisson-core.mkModules ./configs;
+        modules = lib: lib.caisson-core.mkModules ./modules;
+        configs = lib: lib.caisson-core.mkModules ./configs;
         pkgSets = lib: lib.caisson.nixpkgs.mkConfigurations { };
 
-        libOverlays = caisson.lib.caisson-core.mkLibOverlays ./lib-overlays;
-        pkgOverlays = caisson.lib.caisson-core.mkPkgOverlays ./pkg-overlays;
+        libOverlays = lib: lib.caisson-core.mkLibOverlays ./lib-overlays;
+        pkgOverlays = lib: lib.caisson-core.mkPkgOverlays ./pkg-overlays;
       };
     in
     lib.caisson.flake-parts.mkTopConfiguration { };
