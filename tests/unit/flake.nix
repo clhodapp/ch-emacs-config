@@ -17,7 +17,7 @@
         projects = {
           inherit caisson;
         };
-        configs = caisson.lib.caisson-core.mkModules ./configs;
+        configs = lib: lib.caisson-core.mkModules ./configs;
       };
     in
     lib.caisson.flake-parts.mkTopConfiguration {
