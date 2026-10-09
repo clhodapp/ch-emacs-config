@@ -13,6 +13,6 @@
 # `pkgs.ch-emacs-config` in any consumer.
 { closure-lib, ... }:
 {
-  imports = [ closure-lib.caisson-core.libManifest.pkgOverlays.emacs-packages ];
+  imports = [ closure-lib.caisson.libManifest.pkgOverlays.emacs-packages ];
   overlay = closure-lib.caisson.nixpkgs.mkPackagesOverlay ./packages "ch-emacs-config";
 }
