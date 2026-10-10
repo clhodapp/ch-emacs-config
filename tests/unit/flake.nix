@@ -12,15 +12,15 @@
   outputs =
     inputs@{ caisson, ... }:
     let
-      lib = caisson.lib.caisson-core.mkLib {
-        inherit (caisson.lib.caisson-core.pins.flake inputs) sources root;
+      lib = caisson.lib.caisson.mkLib {
+        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
         projects = {
           inherit caisson;
         };
-        configs = lib: lib.caisson-core.mkModules ./configs;
+        configs = lib: lib.caisson.mkModules ./configs;
       };
     in
     lib.caisson.flake-parts.mkTopConfiguration {
-      configModule = lib.caisson-core.configs.flake.unit-tests;
+      configModule = lib.caisson.configs.flake.unit-tests;
     };
 }
