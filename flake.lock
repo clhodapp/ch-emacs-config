@@ -199,11 +199,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1792498975,
-        "narHash": "sha256-Yc6MTwUmlcKFOS9gnP4Gbk1qgTT582k7zY1AMDKKKwc=",
+        "lastModified": 1792585942,
+        "narHash": "sha256-JH0fcEq0kPQXDcMtxJ4hbjj0v7MzqQzVVQmGaU81yyo=",
         "owner": "clhodapp",
         "repo": "merman-nix",
-        "rev": "85088320a6dbe3772912ee0a091d15507742d868",
+        "rev": "b87c9e89626b19d067511fcd0e60597784b0cffc",
         "type": "github"
       },
       "original": {
