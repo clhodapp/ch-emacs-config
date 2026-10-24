@@ -12,6 +12,34 @@
 
 (declare-function ghostel--start "ghostel" (context name &optional arg))
 (declare-function ghostel--on-user-input "ghostel" ())
+(declare-function ghostel--remote-shell-p "ghostel" ())
+(declare-function ghostel--password-regex-matches-cursor-row-p "ghostel" ())
+
+;;;###autoload
+(defun ch/ghostel--noncanonical-password-prompt-p ()
+  "Return `regex' if a local program reads a password in non-canonical mode.
+Upstream's local check is libghostty's canonical+!echo heuristic,
+which misses readers that also clear ICANON to take the password a
+byte at a time; sudo-rs does this for every prompt, with or without
+pwfeedback.  This arm requires the cursor row to match
+`ghostel-password-prompt-regex' and only then asks `stty' whether
+the pty has echo off, so ordinary redraws never fork a process.
+A line editor (zle, readline) also runs echo-off and non-canonical,
+so once OSC 133 markers have been seen the arm also requires a
+command to be running: a command line that happens to end in
+\"password:\" is not a prompt.
+Meant as `:after-until' advice on `ghostel--password-prompt-detected-p'."
+  (when-let* (((not (ghostel--remote-shell-p)))
+              ((or ghostel--command-running (null ghostel--prompt-positions)))
+              ((ghostel--password-regex-matches-cursor-row-p))
+              (tty (and (process-live-p ghostel--process)
+                        (process-tty-name ghostel--process))))
+    (with-temp-buffer
+      (and (eql 0 (ignore-errors (call-process "stty" tty t nil "-a")))
+           (let ((case-fold-search nil))
+             (goto-char (point-min))
+             (re-search-forward "\\(?:^\\|[ ;]\\)-echo\\(?:[ ;]\\|$\\)" nil t))
+           'regex))))
 
 ;;;###autoload
 (defun ch/ghostel--inject-buffer-name-env ()

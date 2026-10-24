@@ -34,7 +34,8 @@
      ch/ghostel-called
      ch/ghostel-send-buffer-env
      ch/ghostel-send-C-x
-     ch/ghostel-toggle-escape-routing)
+     ch/ghostel-toggle-escape-routing
+     ch/ghostel--noncanonical-password-prompt-p)
 
     :init
     (add-hook 'ghostel-pre-spawn-hook #'ch/ghostel--inject-buffer-name-env))
@@ -101,5 +102,9 @@
                           (cons "C-g" ghostel-keymap-exceptions))
   (keymap-set ghostel-mode-map "C-c C-g" #'ghostel-send-C-g)
   (keymap-set ghostel-mode-map "C-c C-x" #'ch/ghostel-send-C-x)
+  ;; sudo-rs reads its password with ICANON off, which upstream's local
+  ;; canonical+!echo check can't see; fall back to prompt regex + stty.
+  (advice-add 'ghostel--password-prompt-detected-p :after-until
+              #'ch/ghostel--noncanonical-password-prompt-p)
   (add-hook 'ghostel-mode-hook
             (lambda () (pixel-scroll-precision-mode -1))))
