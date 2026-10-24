@@ -61,7 +61,7 @@ in
     git = {
       default = pkgs.git;
       defaultText = "pkgs.git";
-      description = "git, for magit and the built-in vc backend (diff-hl, project).";
+      description = "git, for magit, gh-review and the built-in vc backend (diff-hl, project).";
     };
     ripgrep = {
       default = pkgs.ripgrep;
@@ -76,7 +76,7 @@ in
     gh = {
       default = pkgs.gh;
       defaultText = "pkgs.gh";
-      description = "The GitHub CLI, for consult-gh.";
+      description = "The GitHub CLI, for consult-gh and gh-review.";
     };
     plantuml = {
       default = pkgs.plantuml;
@@ -145,6 +145,14 @@ in
           ;; so the pin is a directory on `exec-path', ahead of the host's.
           (add-to-list 'exec-path ${elispString "${exe "gh"}/bin"})
         '')
+        (lib.optionalString (on "gh-review") (
+          lib.optionalString (pinned "git") (
+            setAfterLoad "gh-review-core" "gh-review-git-program" (elispString "${exe "git"}/bin/git")
+          )
+          + lib.optionalString (pinned "gh") (
+            setAfterLoad "gh-review-core" "gh-review-gh-program" (elispString "${exe "gh"}/bin/gh")
+          )
+        ))
         (lib.optionalString (pinned "plantuml" && on "plantuml-mode") (
           setAfterLoad "plantuml-mode" "plantuml-executable-path" (
             elispString "${exe "plantuml"}/bin/plantuml"

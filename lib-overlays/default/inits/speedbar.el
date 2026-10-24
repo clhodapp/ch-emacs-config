@@ -993,6 +993,24 @@ no-op unless the PR tree is showing or while the file is unchanged."
 
 (add-hook 'pr-review-mode-hook #'ch/speedbar--pr-arm-follow)
 
+;; --- gh-review file tree ---------------------------------------------
+;; gh-review renders its own display; this side only puts it in the
+;; speedbar window as a flavor, so opening a review takes the window
+;; over from another tree and the flavor toggles keep working.
+
+(declare-function gh-review-tree-fill "gh-review-tree")
+(defvar gh-review-tree-display-function)
+
+(defun ch/speedbar--gh-review-show (pr)
+  "Show PR's file tree as the gh-review flavor of the speedbar window."
+  (if (and (eq ch/speedbar--flavor 'gh-review)
+           (eq (speedbar-frame-or-window) 'window))
+      (gh-review-tree-fill pr)
+    (ch/speedbar--toggle 'gh-review (lambda () (gh-review-tree-fill pr)))))
+
+(with-eval-after-load 'gh-review-tree
+  (setq gh-review-tree-display-function #'ch/speedbar--gh-review-show))
+
 (with-eval-after-load 'evil
   ;; The b, f, p and g prefixes are titled by their own bundles.
   (evil-global-set-key 'motion (kbd "<leader> b t") #'ch/speedbar-buffers-tree)

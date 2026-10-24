@@ -159,6 +159,12 @@ in
     packages = epkgs: _: [ epkgs.pr-review ];
   };
 
+  gh-review = {
+    enable = true;
+    init = readInit "gh-review.el";
+    packages = _epkgs: local: [ local.gh-review ];
+  };
+
   project = {
     enable = true;
     init = readInit "project.el";

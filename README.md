@@ -34,7 +34,7 @@ project cannot disagree about how to spawn a server.
 
 **The programs it runs, closed over.** The init spawns more than
 Emacs: git for magit and the vc backend, ripgrep for the project grep,
-direnv for envrc, the GitHub CLI for consult-gh, plantuml and graphviz
+direnv for envrc, the GitHub CLI for consult-gh and gh-review, plantuml and graphviz
 for diagram previews, merman for mermaid, and the language servers
 above. The built init names every one of them by its Nix store path
 (`lib-overlays/default/executables.nix` is the table), so
