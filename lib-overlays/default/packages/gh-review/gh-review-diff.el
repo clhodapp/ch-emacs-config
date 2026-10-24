@@ -271,6 +271,28 @@ when the file contents are missing."
                   (cl-incf new))))))))
     (nreverse rows)))
 
+(defun gh-review-line-commentable-p (pr path side line)
+  "Whether GitHub accepts a review comment on LINE of PATH in PR.
+SIDE is \"LEFT\" for a line of the merge base, \"RIGHT\" for one of
+the head.  GitHub takes comments on changed lines and on unchanged
+lines within 3 lines of a change."
+  (when-let* ((file (gh-review-pr-file pr path)))
+    (let ((saved (gh-review-file-gaps file)))
+      (unwind-protect
+          (progn
+            (setf (gh-review-file-gaps file)
+                  (mapcar (lambda (region) (cons (plist-get region :index) 'all))
+                          (gh-review--regions file)))
+            (seq-some
+             (lambda (row)
+               (pcase row
+                 (`(context ,old ,new ,commentable)
+                  (and commentable (eql line (if (equal side "LEFT") old new))))
+                 (`(add ,n ,_) (and (equal side "RIGHT") (eql n line)))
+                 (`(del ,n ,_) (and (equal side "LEFT") (eql n line)))))
+             (gh-review-line-plan file)))
+        (setf (gh-review-file-gaps file) saved)))))
+
 (defun gh-review-map-line (file line side)
   "The line of FILE's other side matching LINE on SIDE.
 SIDE is `before' or `after'.  A line inside a change maps to the
