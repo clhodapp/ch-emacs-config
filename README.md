@@ -26,6 +26,16 @@ caches, taskbar pins, and long-lived shells all capture what they saw at
 index time and never notice a profile switch, so a launcher with baked
 paths eventually drives a daemon that no longer exists.
 
+**Pull request review.** `gh-review` opens a GitHub pull request in a
+tab of its own, laid out like GitHub's review page: a speedbar tree of
+the changed files (or of every file), the diff as one card per file
+with rows that expand the unchanged lines around a change, and the
+conversation beside it. The file before, the file after, a whole-file
+diff and an ediff are one key away from any file. `<leader> g v` opens
+the pull request whose link is on the clipboard. Diffs and files are
+read from a local cache repository holding the pull request's two
+commits, so reading more context costs no API calls.
+
 **Language servers from a shared table.** The eglot configuration
 renders one table of servers, published on the composed library as
 `ch-emacs-config.languageServers`, which any other LSP client
