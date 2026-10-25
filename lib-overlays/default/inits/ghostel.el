@@ -62,7 +62,7 @@
   ;; `consult-buffer' and `consult-project-buffer' (narrow key `g'), a
   ;; Ghostel group to `consult-bookmark', the terminal title to
   ;; marginalia's buffer annotations, and makes `consult-line' match
-  ;; across soft-wrapped rows.  The pickers (`<leader> v b', `<leader> v
+  ;; across soft-wrapped rows.  The pickers (`<leader> v v', `<leader> v
   ;; p') are bound globally in evil.el; the shell history picker only
   ;; applies inside a terminal, so it is bound in `ghostel-mode-map'.
   ;; `:demand' loads it as soon as both ghostel and consult are loaded,
@@ -83,6 +83,7 @@
 
   :commands
   (ghostel
+   ghostel-new
    ghostel-clear-scrollback
    ch/ghostel-send-escape)
 
