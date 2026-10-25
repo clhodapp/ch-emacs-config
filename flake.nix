@@ -31,11 +31,11 @@
     # builds them into the Emacs package set.
     pr-review.url = "github:clhodapp/emacs-pr-review";
     pr-review.flake = false;
-    # ghostel ahead of the nixpkgs/emacs-overlay primary, which still ships
-    # 0.53.0; a secondary pin for that one package, on an upstream release
+    # ghostel ahead of the nixpkgs/emacs-overlay primary, which ships
+    # 0.57.0; a secondary pin for that one package, on an upstream release
     # tag.  lib-overlays/default/emacs-packages/overrides.nix explains it
     # and names when it goes.
-    ghostel.url = "github:dakra/ghostel/v0.56.0";
+    ghostel.url = "github:dakra/ghostel/v0.59.0";
     ghostel.flake = false;
 
     # MELPA/ELPA package pins.

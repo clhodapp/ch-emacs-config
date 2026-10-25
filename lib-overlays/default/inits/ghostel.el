@@ -6,6 +6,7 @@
 ;; declare the ones referenced outside autoload/:commands declarations.
 (declare-function ghostel-send-C-g "ghostel")
 (declare-function ch/evil-ghostel-mode "ch-evil-ghostel")
+(declare-function consult-ghostel-mode "consult-ghostel")
 
 (use-package ghostel
 
@@ -56,6 +57,29 @@
     :after evil-ghostel
     :config
     (ch/evil-ghostel-mode 1))
+
+  ;; `consult-ghostel-mode' adds a hidden Ghostel source to
+  ;; `consult-buffer' and `consult-project-buffer' (narrow key `g'), a
+  ;; Ghostel group to `consult-bookmark', the terminal title to
+  ;; marginalia's buffer annotations, and makes `consult-line' match
+  ;; across soft-wrapped rows.  The pickers (`<leader> v b', `<leader> v
+  ;; p') are bound globally in evil.el; the shell history picker only
+  ;; applies inside a terminal, so it is bound in `ghostel-mode-map'.
+  ;; `:demand' loads it as soon as both ghostel and consult are loaded,
+  ;; so the mode is on before the first `consult-buffer', not only after
+  ;; the first picker command.
+  (use-package consult-ghostel
+    :after (ghostel consult)
+    :demand t
+    :commands
+    (consult-ghostel
+     consult-ghostel-project
+     consult-ghostel-history)
+    :config
+    (consult-ghostel-mode 1)
+    (with-eval-after-load 'evil
+      (evil-define-key 'motion ghostel-mode-map
+        (kbd "<leader> v h") #'consult-ghostel-history)))
 
   :commands
   (ghostel

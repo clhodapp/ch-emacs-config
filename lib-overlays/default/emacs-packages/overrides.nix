@@ -11,7 +11,7 @@ self: super: {
   pr-review = self.callPackage ./pr-review/package.nix { src = sources.pr-review; };
 
   # Two upstream bug fixes, carried until upstream takes them.  Neither is
-  # filed as of 0.56.0.  `--replace-fail' means a source change that moves
+  # filed as of 0.59.0.  `--replace-fail' means a source change that moves
   # either line breaks the build rather than silently skipping the patch.
   #
   # `adjustGlyph' scales a fallback-font glyph to fit the terminal cell, but
@@ -46,26 +46,27 @@ self: super: {
   # Measured: following text lands at exactly 2.00 columns at scales 0, +2
   # and +4.  Drop this patch once upstream reserves the scaled width.
   #
-  # The `ghostel' flake input supplies the source, because 0.54.0 fixed mouse
-  # cells under `text-scale-mode' (dakra/ghostel#676) and nixpkgs still ships
-  # 0.53.0.  nixpkgs remains the build recipe; `version', `src' and `zigDeps'
-  # are the whole of the override, and all three go once the pinned nixpkgs
-  # reaches 0.54.0 or later.
+  # The `ghostel' flake input supplies the source, because the pinned nixpkgs
+  # ships 0.57.0 and this config tracks the latest upstream release (0.59.0
+  # added `ghostel-shell-command' and `ghostel-new').  nixpkgs remains the
+  # build recipe; `version', `src' and `zigDeps' are the whole of the
+  # override, and all three go once the pinned nixpkgs reaches the pinned
+  # release.
   #
   # `zigDeps' is a fixed-output derivation over the source, so it is refetched
   # here and its hash tracks the pin.  `passthru.module' reads `src', `version'
   # and `zigDeps' back through `finalAttrs', hence the two-argument form.
   #
-  # `evil-ghostel' below builds from `self.ghostel.src', so it follows this
-  # pin too.
+  # `evil-ghostel' and `consult-ghostel' below build from `self.ghostel.src',
+  # so they follow this pin too.
   ghostel = super.ghostel.overrideAttrs (
     finalAttrs: old: {
-      version = "0.56.0";
+      version = "0.59.0";
       src = sources.ghostel;
       zigDeps = finalAttrs.zig.fetchDeps {
         inherit (finalAttrs) src pname version;
         fetchAll = true;
-        hash = "sha256-87q0nSOkZaIHW8Ztgf5pR13sHNw7eQKJhu12QjRMTvA=";
+        hash = "sha256-BZzOCIY/3kkpYN115YLeu8snFqW77cJBXF+z+cpNYLk=";
       };
       passthru = old.passthru // {
         # nixpkgs' `preBuild' installs `finalPackage.module', so patching
@@ -93,6 +94,14 @@ self: super: {
   # this file advises ghostel internals, and a version skew between them
   # is what the vendored copy this replaces existed to paper over.
   evil-ghostel = self.callPackage ./evil-ghostel/package.nix {
+    src = self.ghostel.src;
+    inherit (self.ghostel) version;
+  };
+
+  # The consult extension lives under extensions/ too.  MELPA's separate
+  # recipe for it would track ghostel's main branch on its own schedule, so
+  # it is built from the same source as the core for the same reason.
+  consult-ghostel = self.callPackage ./consult-ghostel/package.nix {
     src = self.ghostel.src;
     inherit (self.ghostel) version;
   };
