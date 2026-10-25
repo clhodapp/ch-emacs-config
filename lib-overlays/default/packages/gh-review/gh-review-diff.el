@@ -1229,7 +1229,10 @@ Return (PATH . LINE); LINE is nil off a code line."
 (defun gh-review-show-side (pr path side &optional line)
   "Show PATH of PR on SIDE, `before' or `after', at LINE."
   (let ((buffer (gh-review--blob-buffer pr path side)))
+    ;; Splitting keeps the file beside the diff it was opened from;
+    ;; side windows are never split, so the conversation stays put.
     (pop-to-buffer buffer '((display-buffer-reuse-window
+                             display-buffer-pop-up-window
                              display-buffer-use-some-window)
                             (inhibit-same-window . t)))
     (when line
