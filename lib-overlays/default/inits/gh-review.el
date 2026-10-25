@@ -2,6 +2,7 @@
 ;; init gh-review
 (declare-function evil-define-key* "evil-core")
 (declare-function evil-set-initial-state "evil-core")
+(declare-function evil-normalize-keymaps "evil-core")
 (declare-function gh-review-blob-diff "gh-review-diff")
 (declare-function gh-review-blob-next-change "gh-review-diff")
 (declare-function gh-review-blob-other-side "gh-review-diff")
@@ -109,6 +110,11 @@
     (evil-define-key 'normal gh-review-editor-mode-map
       "ZZ" #'gh-review-editor-finish
       "ZQ" #'gh-review-editor-cancel)
+    ;; Both modes are turned on after the buffer's major mode, and evil
+    ;; applies a minor mode's keys only when it refreshes the buffer's
+    ;; keymaps; without the refresh ZZ is evil's own write-and-close.
+    (add-hook 'gh-review-editor-mode-hook #'evil-normalize-keymaps)
+    (add-hook 'gh-review-blob-mode-hook #'evil-normalize-keymaps)
     (evil-define-key 'motion gh-review-blob-mode-map
       "]c" #'gh-review-blob-next-change
       "[c" #'gh-review-blob-previous-change
