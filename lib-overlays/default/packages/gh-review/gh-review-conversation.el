@@ -44,9 +44,9 @@ The panel's own window decides it; before the panel is displayed,
 the width it will get in the layout stands in."
   (let ((window (get-buffer-window (current-buffer))))
     (max 30 (- (if window
-                   (window-body-width window)
+                   (window-max-chars-per-line window)
                  (floor (* (frame-width) gh-review-conversation-width)))
-               2))))
+               4))))
 
 (defun gh-review--conversation-resized (window)
   "Fill the conversation panel shown in WINDOW again if its width changed."
