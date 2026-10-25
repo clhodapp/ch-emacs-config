@@ -186,7 +186,13 @@ prefix bindings may arrive in any order across init bundles."
   (evil-global-set-key 'motion (kbd "<leader> v c") #'ch/ghostel-called)
   (evil-global-set-key 'motion (kbd "<leader> v e") #'ch/ghostel-toggle-escape-routing)
   (evil-global-set-key 'motion (kbd "<leader> v ESC") #'ch/ghostel-send-escape)
-  (evil-global-set-key 'motion (kbd "<leader> v v") #'ghostel)
+  (evil-global-set-key 'motion (kbd "<leader> v n") #'ghostel-new)
+  (evil-global-set-key 'motion (kbd "<leader> v p") #'consult-ghostel-project)
+  ;; The picker without a count; with count N, `consult-ghostel' calls
+  ;; `ghostel' with N, which goes to terminal N (`*ghostel*<N>', or
+  ;; `*ghostel*' for 1) and creates it if needed.  `<leader> v n' creates
+  ;; the next free number.
+  (evil-global-set-key 'motion (kbd "<leader> v v") #'consult-ghostel)
   (evil-global-set-key 'motion (kbd "<leader> w -") #'split-window-below)
   (evil-global-set-key 'motion (kbd "<leader> w /") #'split-window-right)
   (evil-global-set-key 'motion (kbd "<leader> w =") #'balance-windows)

@@ -240,9 +240,11 @@ in
     # ch-evil-ghostel already pulls it in, so the package manifest
     # records the version it was built at: it comes from ghostel's own
     # source tree via an overlay, not from emacs-overlay's package set.
+    # consult-ghostel comes from the same tree.
     packages = epkgs: local: [
       epkgs.ghostel
       epkgs.evil-ghostel
+      epkgs.consult-ghostel
       local.ch-evil-ghostel
       local.ghostel-funcs
     ];

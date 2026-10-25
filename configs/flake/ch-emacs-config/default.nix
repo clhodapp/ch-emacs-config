@@ -309,6 +309,18 @@
                     -f ert-run-tests-batch-and-exit
                   touch $out
                 '';
+                # The consult-ghostel wiring, against the fully loaded init:
+                # the init loads it only after both ghostel and consult,
+                # which the init-load check never loads, so whether the mode
+                # comes on and where the leader keys land is invisible there.
+                consult-ghostel-ert = pkgs.runCommand "consult-ghostel-ert" { } ''
+                  export HOME="$TMPDIR"
+                  ${emacsScope.emacs}/bin/emacs --batch \
+                    -l ${emacsTestsSrc}/load-init.el \
+                    -l ${emacsTestsSrc}/consult-ghostel-ert.el \
+                    -f ert-run-tests-batch-and-exit
+                  touch $out
+                '';
                 # The speedbar Project tree's delete commands, against the
                 # fully loaded init: what they depend on is how the tree's
                 # own rendering, evil's keymap precedence and
