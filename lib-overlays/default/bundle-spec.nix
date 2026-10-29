@@ -15,6 +15,7 @@ let
       g.tree-sitter-nix
       g.tree-sitter-python
       g.tree-sitter-ruby
+      g.tree-sitter-rust
       g.tree-sitter-toml
       g.tree-sitter-tsx
       g.tree-sitter-typescript
@@ -262,6 +263,12 @@ in
     enable = true;
     init = readInit "treesit-fold.el";
     packages = epkgs: _: [ epkgs.treesit-fold ];
+  };
+
+  rust-ts-mode = {
+    enable = true;
+    init = readInit "rust-ts-mode.el";
+    packages = _epkgs: _: [ ];
   };
 
   typescript-ts-mode = {

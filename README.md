@@ -99,6 +99,10 @@ provides:
   `/bin/sh`).
 - `nix`, when an `.envrc` uses it: direnv is pinned, what the envrc
   invokes is not.
+- The Rust toolchain of each Rust project. rust-analyzer is pinned, but
+  it runs `cargo` and `rustc` from `PATH`, where envrc usually puts the
+  toolchain of a dev shell. Formatting runs the rustfmt of that same
+  toolchain.
 - Spell-check dictionaries. jinx checks through enchant, which reads
   hunspell dictionaries from its own configuration directory; the
   Home Manager module provisions `en_US` there, the bare package does

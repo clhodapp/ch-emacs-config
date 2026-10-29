@@ -32,7 +32,8 @@
           typescript-ts-base-mode
           json-ts-mode
           mermaid-ts-mode
-          bash-ts-mode)
+          bash-ts-mode
+          rust-ts-mode)
          . eglot-ensure)
 
   :config

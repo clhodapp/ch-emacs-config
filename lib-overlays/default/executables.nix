@@ -186,6 +186,8 @@ in
             (add-to-list 'eglot-server-programs
                          '((json-ts-mode js-json-mode)
                            . (${elispStrings languageServers.vscode-json-language-server.cmd})))
+            (add-to-list 'eglot-server-programs
+                         '(rust-ts-mode . (${elispStrings languageServers.rust-analyzer.cmd})))
           ${
             lib.optionalString (languageServers ? merman-lsp) (
               "  (add-to-list 'eglot-server-programs\n"

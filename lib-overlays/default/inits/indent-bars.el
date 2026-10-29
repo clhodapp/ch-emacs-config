@@ -1,7 +1,7 @@
 ;; SPDX-License-Identifier: MIT
 ;; init indent-bars
 (use-package indent-bars
-  :hook ((python-ts-mode yaml-ts-mode ruby-ts-mode java-ts-mode nix-ts-mode)
+  :hook ((python-ts-mode yaml-ts-mode ruby-ts-mode java-ts-mode nix-ts-mode rust-ts-mode)
          . indent-bars-mode)
   :custom
   (indent-bars-treesit-support t)
