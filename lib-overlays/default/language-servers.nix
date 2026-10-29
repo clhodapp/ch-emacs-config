@@ -87,6 +87,19 @@ lib.optionalAttrs (merman != null) {
     };
   };
 
+  # The server runs the project's own cargo and rustc, found on PATH
+  # (envrc puts a dev shell's toolchain there), so the toolchain is not
+  # pinned. nixpkgs' wrapper defaults RUST_SRC_PATH to nixpkgs' own
+  # standard-library source, which rust-analyzer then reads in place of
+  # the source that ships with the toolchain. A dev shell that sets
+  # RUST_SRC_PATH overrides the default.
+  rust-analyzer = {
+    cmd = [ (lib.getExe pkgs.rust-analyzer) ];
+    extensionToLanguage = {
+      ".rs" = "rust";
+    };
+  };
+
   vscode-json-language-server = {
     cmd = [
       "${pkgs.vscode-langservers-extracted}/bin/vscode-json-language-server"
