@@ -200,11 +200,11 @@
         "nixpkgs-lib": "nixpkgs-lib_3"
       },
       "locked": {
-        "lastModified": 1793282254,
-        "narHash": "sha256-QHLxrr8ALTgFwmFatLDdj0DwiksPp9gPmbnhLEou5WQ=",
+        "lastModified": 1793368557,
+        "narHash": "sha256-pJnhZU+YnTei5rJlM8si53PO1Co0QDdYJAvE09zvhTg=",
         "owner": "clhodapp",
         "repo": "merman-nix",
-        "rev": "193a2c13869dd6cf8bb365abdfbd6dd3cc6a1c00",
+        "rev": "782197bd989a931b857cfce45ff1e475cb4e978d",
         "type": "github"
       },
       "original": {
