@@ -19,6 +19,7 @@ let
   localPnames = [
     "ch-emacs-config-default"
     "ch-evil-ghostel"
+    "gh-review"
     "ghostel-funcs"
     "markdown-table-fix"
     "window-funcs"

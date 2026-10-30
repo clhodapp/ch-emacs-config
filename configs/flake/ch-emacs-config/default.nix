@@ -125,6 +125,7 @@
             );
             markdownTableFixSrc = closure-lib.ch-emacs-config.packageSources.markdown-table-fix;
             renderDwimSrc = closure-lib.ch-emacs-config.packageSources.render-dwim;
+            ghReviewSrc = closure-lib.ch-emacs-config.packageSources.gh-review;
             # The editor's own tests: elisp and scripts the checks below
             # run against a built Emacs, beside the other test trees.
             emacsTestsSrc = self.outPath + "/tests/emacs";
@@ -361,6 +362,23 @@
                       ${emacsScope.emacs}/bin/emacs --batch \
                         -L ${renderDwimSrc} \
                         -l ${emacsTestsSrc}/render-dwim-ert.el \
+                        -f ert-run-tests-batch-and-exit
+                      touch $out
+                    '';
+                # gh-review without GitHub: the diff parser, the line plan
+                # behind context expansion, rendering, and the fetch and
+                # diff round trip against a local repository standing in
+                # for GitHub (git on PATH).
+                gh-review-ert =
+                  pkgs.runCommand "gh-review-ert"
+                    {
+                      nativeBuildInputs = [ pkgs.git ];
+                    }
+                    ''
+                      export HOME="$TMPDIR"
+                      ${emacsScope.emacs}/bin/emacs --batch \
+                        -L ${ghReviewSrc} \
+                        -l ${emacsTestsSrc}/gh-review-ert.el \
                         -f ert-run-tests-batch-and-exit
                       touch $out
                     '';

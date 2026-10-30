@@ -30,6 +30,9 @@ in
     evil-ghostel = epkgs.evil-ghostel;
     evil = epkgs.evil;
   };
+  gh-review = epkgs.callPackage ./gh-review {
+    inherit mkLocalBuild version;
+  };
   markdown-table-fix = epkgs.callPackage ./markdown-table-fix {
     inherit mkLocalBuild version;
   };

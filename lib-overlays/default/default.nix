@@ -84,6 +84,7 @@
       packageSources = {
         ch-evil-ghostel = ./packages/ch-evil-ghostel;
         ghostel-funcs = ./packages/ghostel-funcs;
+        gh-review = ./packages/gh-review;
         markdown-table-fix = ./packages/markdown-table-fix;
         mermaid-preview = ./packages/mermaid-preview;
         render-dwim = ./packages/render-dwim;
