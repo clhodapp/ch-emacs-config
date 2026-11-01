@@ -47,7 +47,7 @@
     {
       checks.${system}.plain-consumer =
         # The module's default base package is the overlay's selection.
-        assert home.config.ch-emacs-config.emacs.package.outPath == pkgs.ch-emacs-config.emacs.outPath;
+        assert home.config.programs.nemacs.settings.package.outPath == pkgs.ch-emacs-config.emacs.outPath;
         home.activationPackage;
     };
 }

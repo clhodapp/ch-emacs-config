@@ -13,7 +13,7 @@ nixpkgs ships a new major as `emacs<NN>-*` before it moves the unversioned `emac
 - The package overlay registry on `mkLib` (`pkg-overlays/`) holds two entries. `emacs-packages` is emacs-overlay's ELPA/MELPA package overlay. `default` adds `pkgs.ch-emacs-config.emacs`, `.emacs-pgtk`, `.emacs-nox` and imports `emacs-packages`, so a package set that applies it builds Emacs packages from the pinned set. The scope name is bound in the entry, so the packages land under `pkgs.ch-emacs-config` in any consumer.
 - A caisson consumer that lists this flake in `projects` holds the entries as `ch-emacs-config/default` and `ch-emacs-config/emacs-packages`; its package sets apply `ch-emacs-config/default`, and through it the pins, by default. The flake exports the same entries as `pkgOverlays`.
 - A consumer without caisson applies `overlays.default`, the same overlay with the pins composed in; `overlays.emacs-packages` is the pins alone.
-- `modules.homeManager.emacs` defaults `ch-emacs-config.emacs.package` to `pkgs.ch-emacs-config.emacs`, with a `throw` that names the overlay when it is absent. The module itself uses only standard module arguments; it does not depend on the framework.
+- `modules.nemacs.default` defaults the nemacs option `package` to `pkgs.ch-emacs-config.emacs`, with a `throw` that names the overlay when it is absent. The module itself uses only standard module arguments; it does not depend on the framework.
 
 ## Why the checks build against the overlay
 

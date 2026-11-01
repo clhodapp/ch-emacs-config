@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: MIT
 {
   ghostel,
-  mkLocalBuild,
+  nemacsBuild,
   version,
 }:
-mkLocalBuild {
+nemacsBuild {
   pname = "ghostel-funcs";
   inherit version;
   packageRequires = [ ghostel ];

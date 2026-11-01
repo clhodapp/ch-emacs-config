@@ -13,14 +13,6 @@
 (setq custom-file nil)
 (setq custom-enabled-themes nil)
 
-;; Flake-wrapped Emacs passes --init-directory to a read-only store path.
-;; Relocate before init so packages (e.g. transient) can persist runtime data.
-(when (string-prefix-p "/nix/store/" user-emacs-directory)
-  (setq user-emacs-directory
-        (if-let* ((xdg (getenv "XDG_CONFIG_HOME")))
-            (expand-file-name "emacs/" xdg)
-          (expand-file-name ".emacs.d/" (getenv "HOME")))))
-
 ;; Keep async JIT as a safety net for Lisp that missed AoT.
 (when (featurep 'native-compile)
   (require 'comp-run)

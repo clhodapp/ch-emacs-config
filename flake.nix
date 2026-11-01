@@ -26,6 +26,10 @@
   inputs = {
     caisson.url = "github:nix-caisson/caisson";
 
+    # The module system the configuration is written in: the editor is a
+    # nemacs evaluation of the nemacs module `default`.
+    nemacs.url = "github:clhodapp/nemacs";
+
     # Plain Emacs package repositories (no flake); the library's
     # emacsPackageOverrides (lib-overlays/default/emacs-packages/overrides.nix)
     # builds them into the Emacs package set.
@@ -70,6 +74,9 @@
           # behind render-dwim and mermaid-preview and the mermaid language
           # server the shared table spawns, arrives as `merman-nix/default`.
           merman-nix = inputs.merman-nix;
+          # `lib.nemacs`, and the Home Manager module `nemacs/nemacs` the
+          # module `emacs` imports.
+          inherit (inputs) nemacs;
         };
 
         modules = lib: lib.caisson.mkModules ./modules;

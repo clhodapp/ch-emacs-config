@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
-{ mkLocalBuild, version }:
-mkLocalBuild {
+{ nemacsBuild, version }:
+nemacsBuild {
   pname = "markdown-table-fix";
   inherit version;
   packageRequires = [ ];

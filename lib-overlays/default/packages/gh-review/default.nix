@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
-{ mkLocalBuild, version }:
-mkLocalBuild {
+{ nemacsBuild, version }:
+nemacsBuild {
   pname = "gh-review";
   inherit version;
   packageRequires = [ ];

@@ -23,6 +23,7 @@
   caisson.modules = {
     flake.exported = modules: { inherit (modules) default; };
     homeManager.exported = modules: { inherit (modules) emacs; };
+    nemacs.exported = modules: { inherit (modules) default; };
   };
 
   partitionedAttrs.checks = "checks";
@@ -84,31 +85,29 @@
             plainConsumerOutputs = callConsumer {
               path = self.outPath + "/tests/integration/plain-consumer";
             };
-            emacsBundleSpec = closure-lib.ch-emacs-config.bundleSpec;
-            # Packages consumed as plain (non-flake) inputs; the library's
-            # `emacsPackageOverrides` builds them into the package set.
-            emacsPackageSources = {
-              inherit (inputs) pr-review ghostel;
-            };
             # merman: the mermaid renderer and language server, its own
             # repo. The preview line: the language server and the mmdc
             # subcommand exist from 0.8.0 on, and 0.8.0 has only
             # prereleases so far.
             merman = inputs.merman-nix.packages.${system}.merman-preview;
+            # The configuration on one Emacs base package. The exported
+            # packages close over every program the init spawns.
             mkEmacsDefault =
               emacsPackage:
-              closure-lib.ch-emacs-config.mkEmacsScope {
-                inherit pkgs emacsPackage;
-                lib = pkgs.lib;
-                bundles = emacsBundleSpec;
-                sources = emacsPackageSources;
-                # The exported packages close over every program the
-                # init spawns; merman has no nixpkgs default, so it is
-                # named here.
-                executables = { inherit merman; };
+              closure-lib.nemacs.evalNemacs {
+                inherit pkgs;
+                modules = [
+                  self.modules.nemacs.default
+                  {
+                    key = "ch-emacs-config.checks.package";
+                    package = emacsPackage;
+                  }
+                ];
               };
-            emacsScope = mkEmacsDefault pkgs.ch-emacs-config.emacs;
-            emacsPgtkScope = mkEmacsDefault pkgs.ch-emacs-config.emacs-pgtk;
+            emacsConfiguration = mkEmacsDefault pkgs.ch-emacs-config.emacs;
+            emacsPgtkConfiguration = mkEmacsDefault pkgs.ch-emacs-config.emacs-pgtk;
+            editor = emacsConfiguration.config.build.package;
+            editorPgtk = emacsPgtkConfiguration.config.build.package;
             emacsOverlayRev = inputs.emacs-overlay.rev or inputs.emacs-overlay.sourceInfo.rev or null;
             # The package manifest of the exported Emacs, written out as
             # JSON: what is installed and at which version.
@@ -117,9 +116,7 @@
                 closure-lib.ch-emacs-config.mkPackageManifest {
                   inherit pkgs emacsOverlayRev;
                   lib = pkgs.lib;
-                  emacsPackage = pkgs.ch-emacs-config.emacs;
-                  bundles = emacsBundleSpec;
-                  sources = emacsPackageSources;
+                  inherit (emacsConfiguration) config;
                 }
               )
             );
@@ -133,23 +130,23 @@
             # activation fires the autoload hook).  load-init.el traps the
             # error-level warnings use-package demotes runtime errors to.
             mkInitLoadCheck =
-              name: scope:
+              name: editor:
               pkgs.runCommand "${name}-init-load" { } ''
                 export HOME="$TMPDIR"
-                ${scope.emacs}/bin/emacs --batch -l ${emacsTestsSrc}/load-init.el
+                ${editor}/bin/emacs --batch -l ${emacsTestsSrc}/load-init.el
                 touch $out
               '';
             # Boot a real daemon (early-init + full startup path, no frames)
             # and probe init health over emacsclient.  The probe expression
             # must stay free of single quotes for the shell quoting to hold.
             mkDaemonCheck =
-              name: scope: emacsPackage:
+              name: editor: emacsPackage:
               pkgs.runCommand "${name}-daemon-startup" { } ''
                 export HOME="$TMPDIR/home"
                 export XDG_RUNTIME_DIR="$TMPDIR/run"
                 mkdir -p "$HOME"
                 mkdir -p -m 700 "$XDG_RUNTIME_DIR"
-                ${scope.emacs}/bin/emacs --daemon=smoke
+                ${editor}/bin/emacs --daemon=smoke
                 result="$(${emacsPackage}/bin/emacsclient -s smoke --eval \
                   '(progn (load "${emacsTestsSrc}/daemon-probe.el") (ch-emacs-config-daemon-probe))')"
                 ${emacsPackage}/bin/emacsclient -s smoke --eval '(kill-emacs 0)' 2>/dev/null || true
@@ -209,8 +206,8 @@
                 touch $out
               '';
             # Evaluate the home-manager module end to end: option types, the
-            # programs.emacs wiring, bundle-conditional home.packages, and
-            # the mcp stdio bridge all get forced by the activation package.
+            # programs.nemacs wiring, bundle-conditional home.packages, and
+            # the daemon unit all get forced by the activation package.
             #
             # The module also contributes a skill and hooks to an agent
             # module's options when one is present. That wiring is
@@ -225,22 +222,14 @@
                   home.username = "tester";
                   home.homeDirectory = "/home/tester";
                   home.stateVersion = "25.05";
-                  # `package` is left at its default so the check covers
-                  # the overlay-backed selection.
                   ch-emacs-config.emacs = {
                     enable = true;
                     # Forces the jinx personal-dictionary option type and
                     # the merge activation entry through evaluation.
                     jinxPersonalWords = [ "hmcheckword" ];
-                    # A bundle defined through the option under a name the
-                    # spec does not have, the way a layer above defines its
-                    # own. Its init carries a marker the emacs-option-bundle
-                    # check looks for in the built init package.
-                    bundles.hm-check-option-bundle = {
-                      enable = true;
-                      init = "(defvar ch-emacs-config-hm-check-option-bundle-marker t)";
-                    };
                   };
+                  # `package` is left at its default so the check covers
+                  # the overlay-backed selection.
                 }
               ];
             };
@@ -250,33 +239,17 @@
               unitOutputs.checks.${system}
               // plainConsumerOutputs.checks.${system}
               // {
-                emacs = emacsScope.emacs;
-                emacs-pgtk = emacsPgtkScope.emacs;
-                emacs-init-load = mkInitLoadCheck "emacs" emacsScope;
-                emacs-pgtk-init-load = mkInitLoadCheck "emacs-pgtk" emacsPgtkScope;
-                emacs-daemon-startup = mkDaemonCheck "emacs" emacsScope pkgs.ch-emacs-config.emacs;
-                emacs-pgtk-daemon-startup =
-                  mkDaemonCheck "emacs-pgtk" emacsPgtkScope
-                    pkgs.ch-emacs-config.emacs-pgtk;
+                emacs = editor;
+                emacs-pgtk = editorPgtk;
+                emacs-init-load = mkInitLoadCheck "emacs" editor;
+                emacs-pgtk-init-load = mkInitLoadCheck "emacs-pgtk" editorPgtk;
+                emacs-daemon-startup = mkDaemonCheck "emacs" editor pkgs.ch-emacs-config.emacs;
+                emacs-pgtk-daemon-startup = mkDaemonCheck "emacs-pgtk" editorPgtk pkgs.ch-emacs-config.emacs-pgtk;
                 emacs-drain-custody = mkDrainCustodyCheck "emacs" pkgs.ch-emacs-config.emacs;
                 emacs-pgtk-drain-custody = mkDrainCustodyCheck "emacs-pgtk" pkgs.ch-emacs-config.emacs-pgtk;
                 emacs-last-frame-gate = mkLastFrameGateCheck "emacs" pkgs.ch-emacs-config.emacs;
                 emacs-pgtk-last-frame-gate = mkLastFrameGateCheck "emacs-pgtk" pkgs.ch-emacs-config.emacs-pgtk;
                 emacs-home-manager-module = emacsHomeManagerConfiguration.activationPackage;
-                # A bundle defined through the option under a name the spec
-                # lacks reaches the built init. The resolver once walked
-                # only the spec, so such a bundle vanished without an error:
-                # its packages still installed, and only the init was
-                # missing it.
-                emacs-option-bundle =
-                  let
-                    initPackage = emacsHomeManagerConfiguration.config.ch-emacs-config.emacs.build.packageScope.default;
-                  in
-                  pkgs.runCommand "emacs-option-bundle" { } ''
-                    grep -q ch-emacs-config-hm-check-option-bundle-marker \
-                      ${initPackage}/share/emacs/site-lisp/elpa/ch-emacs-config-default-*/ch-emacs-config-default.el
-                    touch $out
-                  '';
                 # The tic-check Stop hook with the seeded table against
                 # synthetic payloads.  First stop: a block headed
                 # "tic-check: check" naming each matched entry and count and
@@ -291,7 +264,7 @@
                 # test file activates packages to get it on the load path.
                 markdown-table-fix-ert = pkgs.runCommand "markdown-table-fix-ert" { } ''
                   export HOME="$TMPDIR"
-                  ${emacsScope.emacs}/bin/emacs --batch \
+                  ${editor}/bin/emacs --batch \
                     -L ${markdownTableFixSrc} \
                     -l tests/markdown-table-fix-ert.el \
                     -f ert-run-tests-batch-and-exit
@@ -304,7 +277,7 @@
                 # rename or arity change fails here instead of at runtime.
                 ch-evil-ghostel-ert = pkgs.runCommand "ch-evil-ghostel-ert" { } ''
                   export HOME="$TMPDIR"
-                  ${emacsScope.emacs}/bin/emacs --batch \
+                  ${editor}/bin/emacs --batch \
                     -f package-activate-all \
                     -l ${emacsTestsSrc}/ch-evil-ghostel-ert.el \
                     -f ert-run-tests-batch-and-exit
@@ -316,7 +289,7 @@
                 # comes on and where the leader keys land is invisible there.
                 consult-ghostel-ert = pkgs.runCommand "consult-ghostel-ert" { } ''
                   export HOME="$TMPDIR"
-                  ${emacsScope.emacs}/bin/emacs --batch \
+                  ${editor}/bin/emacs --batch \
                     -l ${emacsTestsSrc}/load-init.el \
                     -l ${emacsTestsSrc}/consult-ghostel-ert.el \
                     -f ert-run-tests-batch-and-exit
@@ -331,7 +304,7 @@
                 # commands stop finding anything.
                 speedbar-project-ert = pkgs.runCommand "speedbar-project-ert" { } ''
                   export HOME="$TMPDIR"
-                  ${emacsScope.emacs}/bin/emacs --batch \
+                  ${editor}/bin/emacs --batch \
                     -l ${emacsTestsSrc}/load-init.el \
                     -l ${emacsTestsSrc}/speedbar-project-ert.el \
                     -f ert-run-tests-batch-and-exit
@@ -344,7 +317,7 @@
                 # strings, so --batch exercises them as redisplay does.
                 mode-line-ert = pkgs.runCommand "mode-line-ert" { } ''
                   export HOME="$TMPDIR"
-                  ${emacsScope.emacs}/bin/emacs --batch \
+                  ${editor}/bin/emacs --batch \
                     -f package-activate-all \
                     -l ${emacsTestsSrc}/mode-line-ert.el \
                     -f ert-run-tests-batch-and-exit
@@ -359,7 +332,7 @@
                     }
                     ''
                       export HOME="$TMPDIR"
-                      ${emacsScope.emacs}/bin/emacs --batch \
+                      ${editor}/bin/emacs --batch \
                         -L ${renderDwimSrc} \
                         -l ${emacsTestsSrc}/render-dwim-ert.el \
                         -f ert-run-tests-batch-and-exit
@@ -376,7 +349,7 @@
                     }
                     ''
                       export HOME="$TMPDIR"
-                      ${emacsScope.emacs}/bin/emacs --batch \
+                      ${editor}/bin/emacs --batch \
                         -L ${ghReviewSrc} \
                         -l ${emacsTestsSrc}/gh-review-ert.el \
                         -f ert-run-tests-batch-and-exit
@@ -428,8 +401,8 @@
                   '';
               };
             packages = {
-              inherit (emacsScope) emacs;
-              emacs-pgtk = emacsPgtkScope.emacs;
+              emacs = editor;
+              emacs-pgtk = editorPgtk;
               emacs-package-manifest = emacsPackageManifest;
             };
             treefmt.programs.nixfmt.enable = true;

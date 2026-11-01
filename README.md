@@ -1,8 +1,9 @@
 # ch-emacs-config
 
-A declarative Emacs configuration as a Home Manager module: the editor,
-its packages, its init, and a daemon that survives generation switches,
-all built from Nix.
+A declarative Emacs configuration: the editor, its packages and its
+init as a [nemacs](https://github.com/clhodapp/nemacs) module, and a
+Home Manager module that adds a daemon that survives generation
+switches, all built from Nix.
 
 ## What it provides
 
@@ -10,7 +11,9 @@ all built from Nix.
 time. Enabling the `eglot` bundle brings the language-server wiring, its
 init, and the packages behind it; the same for `jinx` spell checking,
 `consult-gh`, `render-dwim`, and the rest. A bundle is the unit you turn
-on.
+on. Bundles are a nemacs option: the nemacs module `default` defines
+this configuration's bundles, each on by default, and any other nemacs
+module can turn one off, append to its init, or add bundles of its own.
 
 **A daemon with custody rules.** The systemd unit is keyed by a hash of
 the Emacs generation, so a rebuild starts the new daemon rather than
@@ -51,7 +54,7 @@ above. The built init names every one of them by its Nix store path
 the editor behaves the same on a host that has none of them installed,
 and the exported package is a working editor on its own. The fonts it
 names are covered the same way, by installation rather than by path
-(`modules/homeManager/emacs/lib/fonts.nix`), since a font resolves by
+(`lib-overlays/default/fonts.nix`), since a font resolves by
 family through fontconfig. What the host still has to provide is listed
 under [Host requirements](#host-requirements).
 
@@ -61,10 +64,28 @@ under [Host requirements](#host-requirements).
 {
   inputs.ch-emacs-config.url = "github:clhodapp/ch-emacs-config";
 
-  # in a Home Manager configuration:
+  # in a Home Manager configuration that imports
+  # ch-emacs-config.modules.homeManager.emacs:
   #   ch-emacs-config.emacs.enable = true;
 }
 ```
+
+The Home Manager module imports nemacs's own Home Manager module and
+puts the nemacs module `default` into `programs.nemacs.settings`, so
+everything about the editor itself is set there:
+
+```nix
+{
+  programs.nemacs.settings = {
+    package = pkgs.ch-emacs-config.emacs-pgtk;
+    bundles.jinx.enable = false;
+  };
+}
+```
+
+Without Home Manager, `modules.nemacs.default` is a nemacs module like
+any other, for `nemacs.lib.nemacs.evalNemacs` or the NixOS module of
+nemacs.
 
 The flake also exports the Emacs packages it validates against
 (`emacs`, `emacs-pgtk`, `emacs-nox`) and an overlay carrying them.
@@ -77,20 +98,22 @@ every program the init spawns:
 nix run 'github:clhodapp/ch-emacs-config#emacs'
 ```
 
-Each pinned program is an option, `ch-emacs-config.emacs.executables.<name>`
+Each pinned program is an option of the nemacs module,
+`ch-emacs-config.executables.<name>`
 (`git`, `ripgrep`, `direnv`, `gh`, `plantuml`, `graphviz`, `merman`).
 Set one to another package to substitute it, or to `null` to leave
 that program to `PATH` at run time, in which case the host provides
 it.
 
-The fonts work the same way, as `ch-emacs-config.emacs.fonts.<name>`
+The fonts work the same way, as `ch-emacs-config.fonts.<name>`
 (`default`, `symbols`, `emoji`, `emojiFallback`), with the table in
-`modules/homeManager/emacs/lib/fonts.nix`. They cannot be pinned by
+`lib-overlays/default/fonts.nix`. They cannot be pinned by
 store path the way a program can, because Emacs resolves a font by
-family through fontconfig, so the module installs each one and emits
-the init lines naming it. Setting one to `null` drops both halves:
+family through fontconfig, so the Home Manager module installs each one
+and the nemacs module emits the init lines naming it. Setting one to
+`null` drops both halves:
 the package and the line naming its family, leaving that font to the
-host. `ch-emacs-config.emacs.fontHeight` sets the `:height` of the
+host. `ch-emacs-config.fontHeight` sets the `:height` of the
 default face, which is worth revisiting when substituting the default
 font, since families differ in how much of the em they fill.
 
