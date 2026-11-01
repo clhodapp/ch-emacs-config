@@ -299,11 +299,11 @@
         "nixpkgs-lib": "nixpkgs-lib_5"
       },
       "locked": {
-        "lastModified": 1793508565,
-        "narHash": "sha256-7SpSdLyllI0AQHboUxb2zmvw18FUT88NYahPXmoBUrA=",
+        "lastModified": 1793510227,
+        "narHash": "sha256-PgYHZA4mvXr1lP05/gnkBJ/mmqixSQKz9jPz65wOK8Y=",
         "owner": "clhodapp",
         "repo": "nemacs",
-        "rev": "891242f5f899fe2e41e90f99432c0d1821e85fed",
+        "rev": "134dd383d1702ac27fb50b1e0b4989e7391d1407",
         "type": "github"
       },
       "original": {
