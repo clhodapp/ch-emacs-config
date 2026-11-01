@@ -13,7 +13,10 @@
 (setq custom-file nil)
 (setq custom-enabled-themes nil)
 
-;; Keep async JIT as a safety net for Lisp that missed AoT.
+;; Keep async JIT as a safety net for Lisp that missed AoT.  nemacs
+;; byte-compiles this file with warnings as errors, and comp-run, which
+;; defines the deny list, is only required at run time below.
+(defvar native-comp-jit-compilation-deny-list)
 (when (featurep 'native-compile)
   (require 'comp-run)
   ;; Core Emacs also AoT-compiles a few files under share/emacs/native-lisp/,
