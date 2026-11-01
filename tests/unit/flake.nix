@@ -13,8 +13,8 @@
     inputs@{ caisson, ... }:
     let
       lib = caisson.lib.caisson.mkLib {
-        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
-        defaultEcosystemSrc = sources: { nixpkgs-lib = sources.nixpkgs; };
+        inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
+        defaultEcosystemSrc = dependencies: { nixpkgs-lib = dependencies.nixpkgs; };
         projects = {
           inherit caisson;
         };

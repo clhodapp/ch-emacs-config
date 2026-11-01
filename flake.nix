@@ -60,7 +60,7 @@
     inputs@{ caisson, ... }:
     let
       lib = caisson.lib.caisson.mkLib {
-        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+        inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
         name = "ch-emacs-config";
         systems = [ "x86_64-linux" ];
 
