@@ -4,7 +4,7 @@
 # configuration is built and checked against. It is a registry entry of
 # its own, so a project that imports it and another that imports it too
 # apply it once, and a consumer can replace it under its key.
-{ closure-inputs, ... }:
+{ closure-lib, ... }:
 {
-  overlay = closure-inputs.emacs-overlay.overlays.package;
+  overlay = closure-lib.caisson.dependencies.emacs-overlay.overlays.package;
 }
