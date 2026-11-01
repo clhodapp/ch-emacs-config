@@ -19,7 +19,7 @@
 ;;; Code:
 
 (require 'ert)
-(require 'ch-emacs-config-default)
+(require 'nemacs-init)
 
 (defmacro ch-mode-line-tests--with-buffer (setup &rest body)
   "Run BODY in a fresh temp buffer configured by SETUP.

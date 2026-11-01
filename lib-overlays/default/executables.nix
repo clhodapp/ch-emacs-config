@@ -4,8 +4,7 @@
 # pin each one to a store path. The language servers keep their own
 # table, which arrives as `languageServerTable` from
 # `ch-emacs-config.languageServers`; `initContent` renders that table's
-# eglot wiring too, so one call yields every pin the init needs and the
-# Home Manager module and the exported package cannot drift.
+# eglot wiring too, so one call yields every pin the init needs.
 #
 # Each entry is a package or null. A package is closed over: the init
 # sets the variable the consuming package reads its program from, after
@@ -54,9 +53,7 @@ in
 {
   # One entry per program: its default package, and what in the init
   # spawns it. merman is not in nixpkgs, so it has no default here: the
-  # Home Manager module takes it from this flake's input, and a
-  # package-scope caller passes it, or leaves the mermaid tooling to
-  # PATH.
+  # nemacs module takes it from this flake's input.
   table = {
     git = {
       default = pkgs.git;

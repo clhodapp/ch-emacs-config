@@ -18,8 +18,8 @@
                          (buffer-substring-no-properties (point-min) (point-max))))))
     (cond (init-file-had-error
            "FAIL: init-file-had-error is set")
-          ((not (featurep 'ch-emacs-config-default))
-           "FAIL: ch-emacs-config-default was not loaded during startup")
+          ((not (featurep 'nemacs-init))
+           "FAIL: nemacs-init was not loaded during startup")
           ;; warning.el renders entries as "ICON Error (type): message";
           ;; the icon prefix varies with display capability, so match the
           ;; level word after start-of-line or whitespace instead of bol.

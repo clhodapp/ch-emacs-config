@@ -1,23 +1,25 @@
 # SPDX-License-Identifier: MIT
+#
+# CONFIG is the `config` of a nemacs evaluation: the manifest lists the
+# packages of its enabled bundles, from its package set, in the order
+# its init runs them.
 {
   lib,
   pkgs,
-  emacsPackage,
-  bundles,
-  sources,
+  config,
   emacsOverlayRev ? null,
 }:
 let
-  version = emacsPackage.version or "0";
-  emacsOverrides = import ./emacs-packages/overrides.nix {
-    inherit lib pkgs sources;
-  };
-  epkgs = (pkgs.emacsPackagesFor emacsPackage).overrideScope emacsOverrides;
-  bundleLib = import ./bundles.nix { inherit lib; };
-  local = import ./packages/scope.nix { inherit epkgs version; };
+  inherit (config) bundles;
+  epkgs = config.build.epkgs;
+
+  orderedNames = lib.sort (
+    a: b:
+    if bundles.${a}.order != bundles.${b}.order then bundles.${a}.order < bundles.${b}.order else a < b
+  ) (builtins.attrNames (lib.filterAttrs (_name: bundle: bundle.enable) bundles));
 
   localPnames = [
-    "ch-emacs-config-default"
+    "nemacs-init"
     "ch-evil-ghostel"
     "gh-review"
     "ghostel-funcs"
@@ -113,9 +115,9 @@ let
     );
 
   bundleEntries = lib.concatLists (
-    map (bundleName: expandBundlePackages bundleName (bundles.${bundleName}.packages epkgs local)) (
-      bundleLib.orderedNames bundles
-    )
+    map (
+      bundleName: expandBundlePackages bundleName (bundles.${bundleName}.packages epkgs)
+    ) orderedNames
   );
 
   implicitEntries = [
@@ -152,7 +154,7 @@ let
   allEntries = dedupeEntries (bundleEntries ++ implicitEntries ++ dependencyEntries);
 in
 {
-  emacsVersion = emacsPackage.version or null;
+  emacsVersion = config.package.version or null;
   inherit emacsOverlayRev;
   packages = lib.sort (a: b: a.pname < b.pname) allEntries;
 }

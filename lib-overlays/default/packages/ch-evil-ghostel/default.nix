@@ -4,10 +4,10 @@
   evil-ghostel,
   ghostel,
   ghostel-funcs,
-  mkLocalBuild,
+  nemacsBuild,
   version,
 }:
-mkLocalBuild {
+nemacsBuild {
   pname = "ch-evil-ghostel";
   inherit version;
   packageRequires = [

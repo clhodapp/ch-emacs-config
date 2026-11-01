@@ -3,9 +3,9 @@
 
 ;;; Commentary:
 ;;
-;; Loads the full ch-emacs-config-default init package the same way real
-;; startup does (package activation triggers the autoload hook) and fails
-;; on any error-level warning.  use-package wraps :init/:config bodies in
+;; Loads the full nemacs-init package the same way real startup does
+;; (package activation, then the init) and fails on any error-level
+;; warning.  use-package wraps :init/:config bodies in
 ;; a condition-case that demotes runtime errors to warnings, so a plain
 ;; `require' can "succeed" with a broken config; trapping display-warning
 ;; is what makes this test strict.
@@ -22,8 +22,7 @@
 
 (package-activate-all)
 
-(unless (featurep 'ch-emacs-config-default)
-  (require 'ch-emacs-config-default))
+(require 'nemacs-init)
 
 (when ch-emacs-config-test-errors
   (message "Init load produced error-level warnings:")

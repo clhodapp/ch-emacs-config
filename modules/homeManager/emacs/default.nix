@@ -1,112 +1,26 @@
 # SPDX-License-Identifier: MIT
-{ closure-inputs, closure-lib, ... }:
+#
+# The ch-emacs-config editor in a Home Manager configuration. The editor
+# itself is the nemacs configuration in `programs.nemacs.settings`,
+# which this module seeds with the nemacs module `default`; what is
+# left here is what only a home can do: install the fonts the init
+# names, provision the spell-check dictionaries, run the daemon and its
+# launchers.
+{ closure-lib, ... }:
 {
   config,
   lib,
-  options,
   pkgs,
   ...
 }:
 let
   cfg = config.ch-emacs-config.emacs;
-  # Packages consumed as plain (non-flake) inputs; the library's
-  # `emacsPackageOverrides` builds them into the package set.
-  emacsPackageSources = {
-    inherit (closure-inputs) pr-review ghostel;
-  };
-  # The pieces the editor is built from come from the published library,
-  # the same ones the exported package is built from.
+  registry = closure-lib.caisson.libManifest.modules;
   emacsLib = closure-lib.ch-emacs-config;
-  bundleSpec = emacsLib.bundleSpec;
-  bundleLib = emacsLib.mkBundleLib { inherit lib; };
-  resolveBundles = import ./lib/resolve-bundles.nix { inherit lib bundleSpec; };
-  bundles = resolveBundles cfg.bundles;
 
-  # This module's own overrides, then whatever a consumer set, then
-  # whatever a layer above contributed. The package scope below and
-  # `programs.emacs.overrides` must be built from the same chain, or a
-  # package added by a layer compiles against a different Emacs package
-  # set than it loads into.
-  composedOverrides = lib.foldl' lib.composeExtensions (lib.composeExtensions cfg.overrides (
-    emacsLib.emacsPackageOverrides {
-      inherit lib pkgs;
-      sources = emacsPackageSources;
-    }
-  )) cfg.extraOverrides;
-
-  localPackageScope =
-    let
-      emacsPackage = cfg.package;
-      epkgs = (pkgs.emacsPackagesFor emacsPackage).overrideScope composedOverrides;
-      version = emacsPackage.version or "0";
-      # The in-tree package scope, extended by any layer built on this
-      # one so its bundles can name packages it defines. Fixed point, so
-      # an added package can depend on another added package.
-      local = lib.fix (
-        final:
-        lib.foldl' (prev: overlay: prev // overlay final prev) (emacsLib.mkLocalPackageScope {
-          inherit epkgs version;
-        }) cfg.localPackageOverlays
-      );
-      packages = emacsLib.mkPackages {
-        inherit
-          epkgs
-          pkgs
-          version
-          ;
-        epkgsToplevel = epkgs;
-        extraInitContent = cfg.extraInitContent;
-        bundleInitContent = bundleLib.initContent bundles;
-        bundlePackages = bundleLib.packages bundles epkgs local;
-      };
-    in
-    packages // { inherit epkgs local; };
-
-  mergedExtraPackages =
-    _epkgs:
-    let
-      scope = localPackageScope;
-    in
-    (lib.optionals cfg.enableDefaultPackage [ scope.default ])
-    ++ (cfg.extraLocalPackages scope)
-    ++ (cfg.extraPackages scope.epkgs);
-
-  daemonBundleEnabled = bundles.daemon.enable or false;
-
-  # The programs the init spawns (git, ripgrep, the language servers,
-  # ...) and the init lines pinning each to a store path; the option
-  # below exposes the table so a consumer can substitute a package or
-  # leave a program to PATH.
-  executablesLib = emacsLib.mkExecutablesLib {
-    inherit lib pkgs;
-    languageServerTable = emacsLib.languageServers;
-  };
-  executablesTable = executablesLib.table // {
-    # Taken from the flake input rather than `pkgs`: this module is
-    # evaluated against the consumer's package set, which carries no
-    # overlay of ours.
-    merman = executablesLib.table.merman // {
-      default = closure-inputs.merman-nix.packages.${pkgs.stdenv.hostPlatform.system}.merman-preview;
-      defaultText = "the merman-preview package of this flake's `merman-nix` input";
-    };
-  };
-  pinnedInitContent = executablesLib.initContent {
-    inherit bundles;
-    executables = cfg.executables;
-  };
-
-  # The fonts the init names. Unlike the programs above, a font cannot be
-  # pinned into the init by store path: Emacs resolves a font by family
-  # through fontconfig, so the package has to be in the profile for the
-  # name to resolve. The module installs whatever this names, which is
-  # why the init carries no font family of its own.
-  fontsLib = import ./lib/fonts.nix { inherit lib pkgs; };
-  fontInitContent = fontsLib.initContent {
-    fonts = cfg.fonts;
-    defaultHeight = cfg.fontHeight;
-  };
-
-  jinxBundleEnabled = bundles.jinx.enable or false;
+  settings = config.programs.nemacs.settings;
+  editor = settings.build.package;
+  bundleEnabled = name: settings.bundles.${name}.enable or false;
 
   jinxMergePersonalDict = emacsLib.mkJinxMergePersonalDict { inherit pkgs; };
 
@@ -114,46 +28,41 @@ let
     lib.concatMapStrings (word: word + "\n") (lib.unique cfg.jinxPersonalWords)
   );
 
-  consultGhBundleEnabled = bundles.consult-gh.enable or false;
+  # Build-time fallback for the launchers' runtime hash derivation: the
+  # 12-character store hash of this generation's editor, which is the
+  # systemd instance name ("/nix/store/" is 11 characters). The
+  # canonical derivation is lib/emacs-gen-hash.sh, shared by the
+  # launchers and the activation script; this value only serves a launch
+  # that happens while the profile is missing or foreign.
+  emacsGenHash = builtins.substring 11 12 (toString editor);
 
-  earlyInitEl = emacsLib.earlyInitEl;
-
-  # Build-time fallback for the launchers' runtime hash derivation:
-  # 12-char store hash of this generation's Emacs — the systemd
-  # instance name ("/nix/store/" is 11 chars).  The canonical
-  # derivation is lib/emacs-gen-hash.sh, shared by the launchers and
-  # the activation script; this value only serves a launch happening
-  # while the profile is missing or foreign.
-  emacsGenHash = builtins.substring 11 12 (toString config.programs.emacs.finalPackage);
-
-  # Launchers behind the desktop entry and $EDITOR.  Everything a
-  # launch depends on is resolved at RUN time through the live profile
-  # — the daemon instance hash and the emacsclient binary — with this
-  # build's paths only as fallback, so a cached copy of the script
-  # from ANY generation still drives the CURRENT daemon.  That
-  # staleness is real: desktop caches (ksycoca), taskbar pins, and
-  # $EDITOR values in long-lived shells all capture whatever they saw
-  # at index time and never notice profile switches (a store-symlink
-  # swap changes no watched mtime).  Field incident 2026-08-09: a
-  # five-day-old plasmashell cache Exec'd a launcher whose baked
-  # instance was long gone — every launch start-failed its unit, then
-  # fell through to the socket.  For the same reason the scripts are
-  # installed into the profile and referenced by their stable profile
-  # path, which also keeps cached references alive after old
-  # generations are GC'd.
+  # Launchers behind the desktop entry and $EDITOR. Everything a launch
+  # depends on is resolved at run time through the live profile (the
+  # daemon instance hash and the emacsclient binary), with this build's
+  # paths only as fallback, so a cached copy of the script from any
+  # generation still drives the current daemon. That staleness is real:
+  # desktop caches (ksycoca), taskbar pins, and $EDITOR values in
+  # long-lived shells all capture whatever they saw at index time and
+  # never notice profile switches, because a store-symlink swap changes
+  # no watched mtime. Field incident 2026-08-09: a five-day-old
+  # plasmashell cache ran a launcher whose baked instance was long gone,
+  # so every launch failed to start its unit and then fell through to the
+  # socket. For the same reason the scripts are installed into the
+  # profile and referenced by their stable profile path, which also keeps
+  # cached references alive after old generations are collected.
   emacsclientLaunchPrelude = ''
     ${builtins.readFile ./lib/emacs-gen-hash.sh}
     profile=${lib.escapeShellArg config.home.profileDirectory}
     gen_hash=$(emacs_gen_hash "$profile/bin/emacs") || gen_hash=${emacsGenHash}
     systemctl --user start "emacs-daemon@$gen_hash.service" || true
     client="$profile/bin/emacsclient"
-    [ -x "$client" ] || client=${config.programs.emacs.finalPackage}/bin/emacsclient
+    [ -x "$client" ] || client=${editor}/bin/emacsclient
   '';
 
   # Desktop-launch path: make sure the current generation's daemon
-  # instance is up (Type=notify start blocks until the socket is
-  # bound; a no-op when it already runs), then connect.  No
-  # --alternate-editor fallback on purpose.
+  # instance is up (a Type=notify start blocks until the socket is bound,
+  # and is a no-op when it already runs), then connect. There is no
+  # --alternate-editor fallback, on purpose.
   emacsclientDesktopLauncher = pkgs.writeShellApplication {
     name = "emacsclient-desktop-launcher";
     runtimeInputs = [
@@ -168,8 +77,8 @@ let
     '';
   };
 
-  # $EDITOR path: same custody rules as desktop launches, but blocking
-  # (callers like git wait for C-x #) and frame-reusing — from a
+  # $EDITOR path: the same custody rules as desktop launches, but
+  # blocking (callers like git wait for C-x #) and frame-reusing. From a
   # terminal inside the session the buffer lands in the live frame
   # rather than spawning a new one.
   emacsclientEditorLauncher = pkgs.writeShellApplication {
@@ -186,103 +95,10 @@ let
   };
 in
 {
+  imports = [ registry.homeManager."nemacs/nemacs" ];
+
   options.ch-emacs-config.emacs = {
-    enable = lib.mkEnableOption "shared emacs configuration";
-
-    package = lib.mkOption {
-      type = lib.types.package;
-      default =
-        pkgs.ch-emacs-config.emacs or (throw ''
-          ch-emacs-config.emacs.package has no default because `pkgs` lacks
-          `pkgs.ch-emacs-config.emacs`: apply this flake's `overlays.default`
-          (a caisson consumer: list the flake in `projects`) to the nixpkgs
-          instance home-manager uses, or set the option to an Emacs package
-          explicitly.
-        '');
-      defaultText = lib.literalExpression "pkgs.ch-emacs-config.emacs";
-      description = ''
-        Base Emacs package used to build the configured package set and init
-        package version. Set this before the module builds `programs.emacs`.
-
-        The default is the Emacs this configuration is validated against,
-        provided by the flake's `overlays.default` as `pkgs.ch-emacs-config.emacs`
-        (the same overlay also provides `emacs-pgtk` and `emacs-nox`).
-      '';
-    };
-
-    enableDefaultPackage = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Install the default shared emacs package from this flake.";
-    };
-
-    extraPackages = lib.mkOption {
-      type = lib.types.functionTo (lib.types.listOf lib.types.package);
-      default = _epkgs: [ ];
-      description = "Additional emacs packages function appended to the module defaults.";
-    };
-
-    extraLocalPackages = lib.mkOption {
-      type = lib.types.functionTo (lib.types.listOf lib.types.package);
-      default = _localPackages: [ ];
-      description = "Additional packages from the local package scope exported by this module.";
-    };
-
-    build.packageScope = lib.mkOption {
-      type = lib.types.raw;
-      readOnly = true;
-      description = ''
-        The resolved package scope: the local in-tree packages, plus
-        `epkgs` (the Emacs package set with this configuration's
-        overrides applied) and `mkLocalBuild`. A layer built on this one
-        reads it to reach a package by the same name this configuration
-        would.
-      '';
-    };
-
-    localPackageOverlays = lib.mkOption {
-      type = lib.types.listOf (lib.types.functionTo (lib.types.functionTo lib.types.attrs));
-      default = [ ];
-      example = lib.literalExpression ''
-        [ (final: prev: { my-package = final.mkLocalBuild { ... }; }) ]
-      '';
-      description = ''
-        Overlays extending the local package scope, so a layer built on
-        this configuration can add packages its own bundles reference by
-        name. Each is `final: prev:` over the scope, which carries
-        `mkLocalBuild` for building an in-tree package the same way this
-        module does.
-      '';
-    };
-
-    overrides = lib.mkOption {
-      type = lib.types.functionTo (lib.types.functionTo lib.types.attrs);
-      default = _self: _super: { };
-      description = ''
-        Overrides for the Emacs package set, forwarded to `programs.emacs.overrides`.
-      '';
-    };
-
-    extraOverrides = lib.mkOption {
-      type = lib.types.listOf (lib.types.functionTo (lib.types.functionTo lib.types.attrs));
-      default = [ ];
-      description = ''
-        Further package-set overrides, composed after `overrides` and
-        this module's own. A list rather than a function so several
-        modules can each contribute: a layer built on this one adds the
-        packages its bundles need without displacing what a consumer set.
-      '';
-    };
-
-    extraInitContent = lib.mkOption {
-      type = lib.types.lines;
-      default = "";
-      description = ''
-        Additional Elisp appended to the shared `default` init package after the
-        baseline `default.el`. Use `lib.mkAfter` in downstream modules to extend
-        without replacing the shared config.
-      '';
-    };
+    enable = lib.mkEnableOption "the ch-emacs-config editor";
 
     jinxPersonalWords = lib.mkOption {
       type = lib.types.listOf (lib.types.strMatching "[^[:space:]]+");
@@ -295,102 +111,26 @@ in
         effect only with the jinx bundle enabled.
       '';
     };
-
-    executables = lib.mkOption {
-      type = lib.types.submodule {
-        options = lib.mapAttrs (
-          _name: entry:
-          lib.mkOption {
-            type = lib.types.nullOr lib.types.package;
-            inherit (entry) default description;
-            defaultText = lib.literalExpression entry.defaultText;
-          }
-        ) executablesTable;
-      };
-      default = { };
-      description = ''
-        The programs the init spawns, pinned into it as store paths so
-        the editor runs the same on a host that has none of them (the
-        language servers are pinned the same way, from the shared server
-        table). Set one to null to leave that program to PATH at run
-        time; the README lists what a host must then provide.
-      '';
-    };
-
-    fonts = lib.mkOption {
-      type = lib.types.submodule {
-        options = lib.mapAttrs (
-          _name: entry:
-          lib.mkOption {
-            type = lib.types.nullOr lib.types.package;
-            inherit (entry) default description;
-            defaultText = lib.literalExpression entry.defaultText;
-          }
-        ) fontsLib.table;
-      };
-      default = { };
-      description = ''
-        The fonts the init names. Each is installed into the profile and
-        its family named in the init, so the editor renders the same on a
-        host that has none of them installed. Set one to null to leave
-        that font to the host, in which case the init stops naming its
-        family too and Emacs falls back to its own default.
-      '';
-    };
-
-    fontHeight = lib.mkOption {
-      type = lib.types.ints.positive;
-      default = 120;
-      description = ''
-        The `:height` of the default face, in tenths of a point. Fonts
-        differ in how much of the em they fill, so a size that suits one
-        family may want adjusting for another.
-      '';
-    };
-
-    bundles = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.submodule ./bundle-module.nix);
-      default = { };
-      description = ''
-        Init and package bundles merged into the shared `default` init package.
-        Enabled bundle init is ordered with `emacs` first, then alphabetical.
-      '';
-    };
   };
 
-  imports = [
-    (import ./lib/bundle-options.nix { inherit bundleSpec; })
-  ];
-
   config = lib.mkMerge [
-    # Outside the enable guard: a layer above reads this to build its own
-    # packages against the same Emacs, and asking it to enable the module
-    # first would be an ordering trap.
-    { ch-emacs-config.emacs.build.packageScope = localPackageScope; }
+    # Outside the enable guard: a layer above reads what the settings
+    # build (the package set, a bundle's init), and asking it to enable
+    # the editor first would be an ordering trap.
+    { programs.nemacs.settings.imports = [ registry.nemacs.default ]; }
 
     (lib.mkIf cfg.enable (
       lib.mkMerge [
-        {
-          programs.emacs.overrides = lib.mkDefault composedOverrides;
-
-          home.file = {
-            ".emacs.d/early-init.el".text = earlyInitEl;
-            ".config/emacs/early-init.el".text = earlyInitEl;
-          };
-
-          programs.emacs = {
-            enable = lib.mkDefault true;
-            package = lib.mkDefault cfg.package;
-            extraPackages = lib.mkDefault mergedExtraPackages;
-          };
-        }
-        (lib.mkIf consultGhBundleEnabled {
+        { programs.nemacs.enable = lib.mkDefault true; }
+        (lib.mkIf (bundleEnabled "consult-gh") {
           # Emacs finds gh through the pin in the init; this profile copy
           # of the same package serves shells and other gh consumers
           # outside the workspace devshell.
-          home.packages = lib.optional (cfg.executables.gh != null) cfg.executables.gh;
+          home.packages = lib.optional (
+            settings.ch-emacs-config.executables.gh != null
+          ) settings.ch-emacs-config.executables.gh;
         })
-        (lib.mkIf jinxBundleEnabled {
+        (lib.mkIf (bundleEnabled "jinx") {
           # Enchant scans its per-user config dir for hunspell dictionaries,
           # independent of session env (XDG_DATA_DIRS is cached by GLib before
           # init files could set it); provision the dictionaries there.
@@ -409,21 +149,20 @@ in
             '';
           };
         })
-        (lib.mkIf (pinnedInitContent != "") {
-          ch-emacs-config.emacs.extraInitContent = lib.mkAfter pinnedInitContent;
-        })
-        {
-          # Emacs resolves a font family through fontconfig, which reads
-          # the profile, so every font the init names is installed here.
-          # fontconfig has to be on for the profile's fonts directory to
-          # be scanned at all.
-          home.packages = lib.filter (font: font != null) (lib.attrValues cfg.fonts);
-          fonts.fontconfig.enable = lib.mkDefault (lib.any (font: font != null) (lib.attrValues cfg.fonts));
-        }
-        (lib.mkIf (fontInitContent != "") {
-          ch-emacs-config.emacs.extraInitContent = lib.mkAfter fontInitContent;
-        })
-        (lib.mkIf daemonBundleEnabled {
+        (
+          let
+            fonts = lib.filter (font: font != null) (lib.attrValues settings.ch-emacs-config.fonts);
+          in
+          {
+            # Emacs resolves a font family through fontconfig, which reads
+            # the profile, so every font the init names is installed here.
+            # fontconfig has to be on for the profile's fonts directory to
+            # be scanned at all.
+            home.packages = fonts;
+            fonts.fontconfig.enable = lib.mkDefault (fonts != [ ]);
+          }
+        )
+        (lib.mkIf (bundleEnabled "daemon") {
           # The launchers live in the profile so the desktop entry, pins,
           # and $EDITOR can reference them by stable path (rationale at
           # their definition above).
@@ -432,18 +171,19 @@ in
             emacsclientEditorLauncher
           ];
 
-          # Desktop launches must never fall back to spawning an unmanaged
-          # daemon: the stock emacsclient.desktop passes --alternate-editor=
-          # (empty), which forks a bare `emacs --daemon` whenever the canonical
-          # socket is unreachable — exactly what the rotation window looks
-          # like — and that rogue then deletes and rebinds the socket path,
-          # stealing custody from the unit daemon and swallowing later taints.
-          # This entry displaces the package's own one in the profile (same
-          # desktop-file id; xdg.desktopEntries installs via home.packages)
-          # and routes launches through the runtime-resolving launcher's
-          # stable profile path — desktop caches and pins keep whatever
-          # Exec they saw at index time, so nothing per-generation may
-          # appear in it.
+          # Desktop launches must not fall back to spawning an unmanaged
+          # daemon. The stock emacsclient.desktop passes
+          # --alternate-editor= (empty), which forks a bare `emacs --daemon`
+          # whenever the canonical socket is unreachable, and the rotation
+          # window looks exactly like that. That rogue daemon then deletes
+          # and rebinds the socket path, stealing custody from the unit
+          # daemon and swallowing later taints. This entry displaces the
+          # package's own one in the profile (same desktop-file id;
+          # xdg.desktopEntries installs via home.packages) and routes
+          # launches through the stable profile path of the launcher that
+          # resolves at run time. Desktop caches and pins keep whatever Exec
+          # they saw at index time, so nothing per-generation may appear in
+          # it.
           xdg.desktopEntries.emacsclient = {
             name = "Emacs (Client)";
             genericName = "Text Editor";
@@ -477,12 +217,12 @@ in
             settings.StartupWMClass = "Emacs";
           };
 
-          # With a managed daemon in the session, it is the editor.  The
+          # With a managed daemon in the session, it is the editor. The
           # stable profile path outlives the shells that capture it.
           home.sessionVariables.EDITOR = "${config.home.profileDirectory}/bin/emacsclient-editor-launcher";
 
           # Template unit shared by all generation instances.
-          # %i is the 12-char store hash of the Emacs package for this generation,
+          # %i is the 12-char store hash of the editor for this generation,
           # used only as a stable systemd instance name for tracking; the daemon
           # itself always owns the canonical "server" socket name.
           systemd.user.services."emacs-daemon@" = {
@@ -492,7 +232,7 @@ in
               PartOf = [ "graphical-session.target" ];
               # ExecStart bakes in a per-generation store path, so this unit
               # file changes every switch; by default sd-switch would then
-              # restart all running instances — killing the live daemon.
+              # restart all running instances, killing the live daemon.
               # keep-old leaves running instances untouched; the activation
               # script below starts the new generation's instance itself.
               X-SwitchMethod = "keep-old";
@@ -500,17 +240,17 @@ in
             Service = {
               Type = "notify";
               # Always bind to the canonical "server" socket; the activation
-              # script mv's the old socket aside before starting this instance.
-              # Use the baked-in Nix store path — ~/.nix-profile may not be set
-              # up when the daemon first starts.
-              ExecStart = "${config.programs.emacs.finalPackage}/bin/emacs --fg-daemon=server";
+              # script moves the old socket aside before starting this
+              # instance. The store path is baked in because ~/.nix-profile
+              # may not be set up when the daemon first starts.
+              ExecStart = "${editor}/bin/emacs --fg-daemon=server";
               Restart = "no";
               StandardInput = "null";
             };
-            # Not WantedBy anything — activation script starts the right instance.
+            # Not WantedBy anything: the activation script starts the right instance.
           };
 
-          # At each HM switch, if the Emacs package changed: taint the old daemon,
+          # At each HM switch, if the editor changed: taint the old daemon,
           # move its socket aside, then start the new generation's instance.
           home.activation.emacsRotateDaemon = lib.hm.dag.entryAfter [ "reloadSystemd" ] ''
             ${builtins.readFile ./lib/emacs-gen-hash.sh}
@@ -523,7 +263,7 @@ in
             # deletes its own socket on clean exit, but not on SIGKILL).
             for _drain_sock in "$_socket_dir"/server-drain-*; do
               [ -S "$_drain_sock" ] || continue
-              ${config.programs.emacs.finalPackage}/bin/emacsclient \
+              ${editor}/bin/emacsclient \
                 --socket-name="$_drain_sock" --eval t >/dev/null 2>&1 \
                 || rm -f "$_drain_sock"
             done
@@ -543,26 +283,27 @@ in
             else
               noteEcho "Rotating Emacs daemon to generation $_emacs_hash"
 
-              # Retire the old daemon (if reachable): rename its socket to a
-              # per-instance drain name first — closing the window where new
-              # clients still land on it — then taint it through the renamed
-              # socket so it adopts the drain name and starts its drain timer.
+              # Retire the old daemon (if reachable). Its socket is renamed to
+              # a per-instance drain name first, which closes the window where
+              # new clients still land on it, and then it is tainted through
+              # the renamed socket so it adopts the drain name and starts its
+              # drain timer.
               if [ -S "$_canonical" ]; then
-                _old_pid=$(${config.programs.emacs.finalPackage}/bin/emacsclient \
+                _old_pid=$(${editor}/bin/emacsclient \
                   --socket-name="$_canonical" --eval '(emacs-pid)' 2>/dev/null \
                   | tr -cd '0-9' || true)
                 if [ -n "$_old_pid" ]; then
                   _drain_name="server-drain-$_old_pid"
                   mv "$_canonical" "$_socket_dir/$_drain_name" 2>/dev/null || true
-                  ${config.programs.emacs.finalPackage}/bin/emacsclient \
+                  ${editor}/bin/emacsclient \
                     --socket-name="$_socket_dir/$_drain_name" \
                     --eval "(when (fboundp 'ch-emacs-config-daemon-taint) (ch-emacs-config-daemon-taint \"$_drain_name\"))" \
                     2>/dev/null || true
                 else
                   # Nothing answers on the canonical path: a stale socket file
-                  # left by a crashed or killed daemon.  Remove it — a stale
-                  # file here makes emacsclient fail, and desktop fallbacks
-                  # would then spawn unmanaged daemons.
+                  # left by a crashed or killed daemon. Remove it, because a
+                  # stale file here makes emacsclient fail, and desktop
+                  # fallbacks would then spawn unmanaged daemons.
                   rm -f "$_canonical"
                 fi
               fi
