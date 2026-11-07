@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-{ closure-inputs, closure-lib, ... }:
+{ closure-lib, ... }:
 {
   config,
   lib,
@@ -25,7 +25,8 @@ let
     # evaluated against the consumer's package set, which need not carry
     # the merman-nix overlay.
     merman = executablesLib.table.merman // {
-      default = closure-inputs.merman-nix.packages.${pkgs.stdenv.hostPlatform.system}.merman-preview;
+      default =
+        closure-lib.caisson.dependencies.merman-nix.packages.${pkgs.stdenv.hostPlatform.system}.merman-preview;
       defaultText = "the merman-preview package of this flake's `merman-nix` input";
     };
   };
@@ -103,7 +104,7 @@ in
         inherit lib pkgs;
         # Packages consumed as plain (non-flake) inputs.
         sources = {
-          inherit (closure-inputs) pr-review ghostel;
+          inherit (closure-lib.caisson.dependencies) pr-review ghostel;
         };
       })
       emacsLib.emacsPackages
