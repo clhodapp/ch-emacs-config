@@ -12,17 +12,17 @@
 ;; its bound commands as possibly missing at runtime; declare them
 ;; (ghostel.el precedent).
 (declare-function evil-define-key* "evil-core")
-(declare-function eglot-code-actions "eglot")
 (declare-function eglot-find-implementation "eglot")
 (declare-function eglot-find-typeDefinition "eglot")
 (declare-function eglot-format "eglot")
 (declare-function eglot-inlay-hints-mode "eglot")
-(declare-function eglot-rename "eglot")
 (declare-function consult-eglot-symbols "consult-eglot")
 (declare-function consult-imenu "consult-imenu")
 (declare-function consult-imenu-multi "consult-imenu")
 (declare-function flymake-show-buffer-diagnostics "flymake")
 (declare-function flymake-show-project-diagnostics "flymake")
+(declare-function refactor "refactor")
+(declare-function refactor-rename "refactor")
 
 (use-package eglot
   :hook ((nix-ts-mode
@@ -52,7 +52,10 @@
   ;; reason.
   (evil-define-key 'motion eglot-mode-map
     (kbd "<leader> l") (cons "lsp" (make-sparse-keymap))
-    (kbd "<leader> l a") #'eglot-code-actions
+    ;; The eglot this bundle loads (from ELPA, a dependency of
+    ;; consult-eglot) offers its code actions and renames through
+    ;; `refactor' and `refactor-rename' from the refactor package.
+    (kbd "<leader> l a") #'refactor
     ;; eglot has no find-definition command of its own; definitions go
     ;; through its xref backend. Unlike `eglot-find-implementation', this
     ;; works on servers without textDocument/implementation (e.g. Python's).
@@ -66,7 +69,7 @@
     (kbd "<leader> l i") #'consult-imenu
     (kbd "<leader> l I") #'consult-imenu-multi
     (kbd "<leader> l m") #'eglot-find-implementation
-    (kbd "<leader> l r") #'eglot-rename
+    (kbd "<leader> l r") #'refactor-rename
     (kbd "<leader> l s") #'consult-eglot-symbols
     (kbd "<leader> l t") #'eglot-find-typeDefinition
     (kbd "<leader> l R") #'xref-find-references
