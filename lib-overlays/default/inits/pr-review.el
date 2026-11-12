@@ -16,7 +16,7 @@
   ;; (HOST . (FORGE-TYPE API-HOST USERNAME)). Both fields are explicit
   ;; so pr-review never consults ghub--username/ghub--host: the
   ;; delegation mode's overrides on those compare ghub's answers
-  ;; against consult-gh's and prompt on mismatch — and the host method
+  ;; against consult-gh's and prompt on mismatch, and the host method
   ;; doesn't normalize the api. prefix, so leaving API-HOST nil yields
   ;; a spurious "which account?" prompt (api.github.com vs github.com).
   ;; The token itself comes from the keyring via the mode's
@@ -25,8 +25,8 @@
 
   :config
   ;; pr-review-mode-map inherits magit-section-mode-map, whose SPC
-  ;; (scroll-up-command) evil-collection exposes at overriding priority
-  ;; — the same shadowing magit.el works around. An explicit nil lets
+  ;; (scroll-up-command) evil-collection exposes at overriding priority:
+  ;; the same shadowing magit.el works around. An explicit nil lets
   ;; lookup fall through to the motion-state <leader>. Do not use
   ;; `keymap-unset' with REMOVE: removal re-exposes the parent binding.
   ;; No replacement binding needed: evil's C-f/C-b/C-d/C-u scroll fine.
@@ -40,8 +40,8 @@
     (kbd "<leader> g f") #'pr-review-view-file
     (kbd "<leader> g e") #'pr-review-ediff-file))
 
-;; Enumeration keys (g p / g n / g d / g i) live in consult-gh.el — the
-;; front door — whose selections land in pr-review buffers via
+;; Enumeration keys (g p / g n / g d / g i) live in consult-gh.el (the
+;; front door), whose selections land in pr-review buffers via
 ;; consult-gh-with-pr-review-mode. pr-review-search and
 ;; pr-review-notification stay reachable by name.
 (with-eval-after-load 'evil

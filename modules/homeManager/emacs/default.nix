@@ -3,9 +3,9 @@
 # The ch-emacs-config editor in a Home Manager configuration. The editor
 # itself is the nemacs configuration in `programs.nemacs.settings`,
 # which this module seeds with the nemacs module `default`; what is
-# left here is what only a home can do: install the fonts the init
-# names, provision the spell-check dictionaries, run the daemon and its
-# launchers.
+# left here is what only a home-manager configuration can do: install
+# the fonts the init names, provision the spell-check dictionaries, run
+# the daemon and its launchers.
 { closure-lib, ... }:
 {
   config,
@@ -178,7 +178,7 @@ in
           # window looks exactly like that. That rogue daemon then deletes
           # and rebinds the socket path, stealing custody from the unit
           # daemon and swallowing later taints. This entry displaces the
-          # package's own one in the profile (same desktop-file id;
+          # entry of the Emacs package in the profile (same desktop-file id;
           # xdg.desktopEntries installs via home.packages) and routes
           # launches through the stable profile path of the launcher that
           # resolves at run time. Desktop caches and pins keep whatever Exec

@@ -22,15 +22,15 @@
 ;; override (`gh auth token`, backed by the system keyring), so the
 ;; override must be live before the first review command, whichever
 ;; surface it enters through. There is no auth-source entry for
-;; github.com — the keyring-held gh credential is the only secret.
+;; github.com: the keyring-held gh credential is the only secret.
 (use-package consult-gh-with-pr-review
   :demand t
 
   :config
   ;; Selecting a PR anywhere (search, dashboard, notifications,
-  ;; embark) opens it in pr-review — the review surface. The native
-  ;; viewer remains reachable only through consult-gh's own operate
-  ;; commands, which stay unbound.
+  ;; embark) opens it in pr-review, the review surface. The native
+  ;; viewer remains reachable only through the operate commands of
+  ;; consult-gh, which stay unbound.
   (consult-gh-with-pr-review-mode 1))
 
 (use-package consult-gh-embark
@@ -77,9 +77,9 @@ The archived-repository exclusion applies regardless.")
 ;; requested from you, plus PRs in your repositories. gh search flags
 ;; AND together, so the union takes two sources; they ride the
 ;; dashboard machinery (consult--multi, delegation to pr-review,
-;; grouping, preview) via a let-bound sources list. No time windows
-;; here — a PR awaiting review must not silently expire; archived
-;; repositories stay excluded.
+;; grouping, preview) via a let-bound sources list. The sources have no
+;; time windows, since a PR awaiting review must not silently expire;
+;; archived repositories stay excluded.
 (defvar ch/consult-gh--dashboard-sep (make-string 6 ?\u2006)
   "consult-gh's dashboard field separator: six six-per-em spaces.
 Copied byte-exactly from its builders; the candidate formatter splits

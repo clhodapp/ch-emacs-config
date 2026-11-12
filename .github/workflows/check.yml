@@ -31,7 +31,7 @@
 # a tree of roots the entry carries: main/<sha> for main's builds,
 # pr/<number>/<sha> for requests', each listing the store paths of that
 # build's closure that the upstream cache did not serve. Each run adds
-# its own, drops the lowest-priority roots until the union fits the
+# a root for its build, drops the lowest-priority roots until the union fits the
 # repository's 10 GB of cache, and then every path no surviving root
 # lists goes. The priority order, highest first: the current main; each
 # open request's newest build; older mains; closed requests. Requests
@@ -51,7 +51,7 @@ on:
   workflow_dispatch:
     inputs:
       head:
-        description: Commit to check (a pull request's head); main's own when empty
+        description: Commit to check (a pull request's head); the head of main when empty
         required: false
         type: string
       pr:

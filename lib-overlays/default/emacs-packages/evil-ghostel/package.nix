@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# evil-ghostel, built from ghostel's own source tree.
+# evil-ghostel, built from the ghostel source tree.
 #
 # ghostel ships this file under extensions/, and its MELPA recipe
 # (`:defaults') installs only the top-level elisp, so the upstream

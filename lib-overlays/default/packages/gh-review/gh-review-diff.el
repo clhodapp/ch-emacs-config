@@ -14,7 +14,7 @@
 ;;
 ;; The diff is computed with no context lines; every unchanged line
 ;; shown comes from the file contents, so any amount of context costs
-;; nothing extra to fetch.  Each file card is rendered on its own,
+;; nothing extra to fetch.  Each file card is rendered separately,
 ;; which keeps expanding one file from redrawing the others.
 
 ;;; Code:

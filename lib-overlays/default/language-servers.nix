@@ -87,7 +87,7 @@ lib.optionalAttrs (merman != null) {
     };
   };
 
-  # The server runs the project's own cargo and rustc, found on PATH
+  # The server runs the cargo and rustc of the project, found on PATH
   # (envrc puts a dev shell's toolchain there), so the toolchain is not
   # pinned. nixpkgs' wrapper defaults RUST_SRC_PATH to nixpkgs' own
   # standard-library source, which rust-analyzer then reads in place of
@@ -112,7 +112,7 @@ lib.optionalAttrs (merman != null) {
 
   # The server shells out for two of its features: shellcheck for
   # diagnostics and shfmt for formatting. Both are looked up by the
-  # path in its own settings (default: bare names on PATH), so pin them
+  # path in its settings (default: bare names on PATH), so pin them
   # there; nixpkgs' wrapper only suffixes PATH with shellcheck, which a
   # different shellcheck earlier on PATH would shadow.
   bash-language-server = {

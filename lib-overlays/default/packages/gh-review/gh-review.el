@@ -6,7 +6,7 @@
 
 ;;; Commentary:
 
-;; gh-review opens a GitHub pull request in its own tab, laid out
+;; gh-review opens a GitHub pull request in a separate tab, laid out
 ;; like GitHub's review page: the file tree on the left (a speedbar
 ;; display), the diff in the middle, the conversation on the right.
 ;;
@@ -27,7 +27,7 @@
 (require 'transient)
 
 (defcustom gh-review-use-tab t
-  "Whether each pull request opens in a tab of its own."
+  "Whether each pull request opens in a separate tab."
   :type 'boolean
   :group 'gh-review)
 

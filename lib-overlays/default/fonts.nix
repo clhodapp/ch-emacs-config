@@ -12,7 +12,7 @@
 # profile and its family named in the init. Null leaves the font to the
 # host, and the init line that names it is omitted rather than left
 # pointing at a family that may not resolve, so a missing font degrades
-# to Emacs's own default instead of a face that silently does not apply.
+# to the default of Emacs instead of a face that silently does not apply.
 { lib, pkgs }:
 let
   elispString = s: ''"${s}"'';

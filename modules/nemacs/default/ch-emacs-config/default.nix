@@ -35,7 +35,7 @@ let
   # pinned into the init by store path: Emacs resolves a font by family
   # through fontconfig, so the package has to be in the profile for the
   # name to resolve. The Home Manager module installs whatever this
-  # names, which is why the init carries no font family of its own.
+  # names, which is why the init names no font family outside this table.
   fontsLib = emacsLib.mkFontsLib { inherit lib pkgs; };
 
   packageEntry =
@@ -73,7 +73,7 @@ in
         editor renders the same on a host that has none of them
         installed. Set one to null to leave that font to the host, in
         which case the init stops naming its family too and Emacs falls
-        back to its own default.
+        back to its default.
       '';
     };
 

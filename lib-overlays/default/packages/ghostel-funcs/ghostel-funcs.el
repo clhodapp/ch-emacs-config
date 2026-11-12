@@ -28,7 +28,7 @@
 (defun ch/ghostel-send-C-x ()
   "Send \\`C-x' to the ghostel terminal.
 Upstream reserves \\`C-x' for Emacs (`ghostel-keymap-exceptions'), so
-programs that need it — nano's exit key, for one — can't receive it
+programs that need it (it is the exit key of nano) can't receive it
 without an explicit sender."
   (interactive)
   (ghostel--on-user-input)

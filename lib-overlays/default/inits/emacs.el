@@ -64,11 +64,11 @@
   ;; output like help and Info, where the line breaks are the
   ;; renderer's and scrolling sideways to read a sentence is a
   ;; nuisance.  Man-mode is the exception that needs no help: it
-  ;; truncates on its own, because man pages arrive pre-formatted to a
+  ;; truncates without help, because man pages arrive pre-formatted to a
   ;; fixed width and wrapping them would double-break every line.
   ;;
   ;; markdown-ts-mode derives from fundamental-mode rather than
-  ;; text-mode, so it needs its own hook (the jinx spell-check list
+  ;; text-mode, so it needs a separate hook (the jinx spell-check list
   ;; carries the same exception for the same reason).
   ;;
   ;; Per-buffer escape hatch: <leader> t v (visual-line-mode) is the

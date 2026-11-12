@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: MIT
 # A consumer with no flake-parts and no framework: the README's
 # first recipe, held as a check. It applies the overlays with a plain
-# `import nixpkgs` and builds a home configuration with a plain
+# `import nixpkgs` and builds a home-manager configuration with a plain
 # `homeManagerConfiguration`.
 #
-# Both overlays are applied, in the order the flake's own checks use, so
+# Both overlays are applied, in the order the checks of ch-emacs-config
+# use, so
 # the resulting Emacs derivations are the ones the checks already build.
 {
   description = "Integration test: plain-flake consumer of ch-emacs-config";
@@ -31,7 +32,7 @@
         # ELPA/MELPA pins it imports composed in.
         overlays = [ parent.overlays.default ];
       };
-      home = home-manager.lib.homeManagerConfiguration {
+      homeManagerConfiguration = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         modules = [
           parent.modules.homeManager.emacs
@@ -47,7 +48,9 @@
     {
       checks.${system}.plain-consumer =
         # The module's default base package is the overlay's selection.
-        assert home.config.programs.nemacs.settings.package.outPath == pkgs.ch-emacs-config.emacs.outPath;
-        home.activationPackage;
+        assert
+          homeManagerConfiguration.config.programs.nemacs.settings.package.outPath
+          == pkgs.ch-emacs-config.emacs.outPath;
+        homeManagerConfiguration.activationPackage;
     };
 }

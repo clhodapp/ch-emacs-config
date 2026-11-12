@@ -140,7 +140,7 @@ case and spells the deviation out in the rare one."
   ;; to this configuration: it renders "@" on any frame with a `client'
   ;; parameter, and the daemon bundle runs Emacs as a daemon that every
   ;; frame connects to through emacsclient.  The only frame without the
-  ;; parameter is the daemon's own initial terminal frame, which has no
+  ;; parameter is the initial terminal frame of the daemon, which has no
   ;; window system and is never looked at, so "@" marks every frame the
   ;; user ever sees.  A window where it were absent would be the
   ;; surprise, and that window does not occur here.

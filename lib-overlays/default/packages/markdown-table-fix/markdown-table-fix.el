@@ -11,7 +11,7 @@
 ;; nodes), not from regexps.
 ;;
 ;; Grammar wrinkles this leans on: an empty interior cell (`||') is not
-;; a cell node — the second pipe surfaces as an ERROR node whose text is
+;; a cell node: the second pipe surfaces as an ERROR node whose text is
 ;; "|", so cell slots are reconstructed by walking a row's pipe tokens;
 ;; and in indented contexts the pipe_table node starts after the first
 ;; line's indentation but *contains* the interior lines' indentation.

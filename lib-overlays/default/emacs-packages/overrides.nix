@@ -88,8 +88,8 @@ self: super: {
     }
   );
 
-  # ghostel ships its evil integration under extensions/, which its own
-  # recipe does not install (melpa's :defaults takes top-level .el only).
+  # ghostel ships its evil integration under extensions/, which the
+  # MELPA recipe of ghostel does not install (melpa's :defaults takes top-level .el only).
   # Build it from the same source as the core, so the two cannot drift:
   # this file advises ghostel internals, and a version skew between them
   # is what the vendored copy this replaces existed to paper over.
@@ -99,7 +99,7 @@ self: super: {
   };
 
   # The consult extension lives under extensions/ too.  MELPA's separate
-  # recipe for it would track ghostel's main branch on its own schedule, so
+  # recipe for it would track ghostel's main branch on a separate schedule, so
   # it is built from the same source as the core for the same reason.
   consult-ghostel = self.callPackage ./consult-ghostel/package.nix {
     src = self.ghostel.src;

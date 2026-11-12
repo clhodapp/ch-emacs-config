@@ -213,7 +213,7 @@ let
       init = readInit "ghostel.el";
       # evil-ghostel is listed alongside the core even though
       # ch-evil-ghostel already pulls it in, so the package manifest
-      # records the version it was built at: it comes from ghostel's own
+      # records the version it was built at: it comes from the ghostel
       # source tree via an overlay, not from emacs-overlay's package set.
       # consult-ghostel comes from the same tree.
       packages = epkgs: [

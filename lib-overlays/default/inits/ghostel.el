@@ -16,7 +16,7 @@
   ;; latter should spawn a terminal: at daemon startup the selected frame
   ;; is the daemon's dumb initial frame, so the terminal would size its
   ;; child programs to it (~80x25) instead of the real client frame.
-  ;; Client frames — GUI or tty — carry the 'client frame parameter.
+  ;; Client frames (GUI or tty) carry the 'client frame parameter.
   (setq initial-buffer-choice
         (lambda ()
           (if (and (daemonp) (null (frame-parameter nil 'client)))
@@ -99,7 +99,7 @@
   ;; motions, not self-insert), so it reads as "up/down locked out".
   ;; `nil' keeps the click in semi-char; the only cost is that a drag
   ;; selection can be clobbered by the next redraw and `M-w' isn't
-  ;; bound for it — an acceptable trade to never get stuck.
+  ;; bound for it, an acceptable trade to never get stuck.
   (ghostel-mouse-drag-input-mode nil "no copy-mode freeze on mouse drag")
   ;; Same trade for the point-leave trigger.  It fires from a deferred
   ;; check after any minibuffer command that returns to this buffer, and
@@ -114,10 +114,10 @@
   ;; C-g is Emacs's quit key, so keep it out of the terminal and put an
   ;; explicit sender on the C-c prefix alongside upstream's C-c C-c and
   ;; C-c C-d.  C-c C-x covers the key upstream reserves for Emacs with no
-  ;; sender of its own (nano's exit key).
+  ;; sender (nano's exit key).
   ;;
   ;; Listing "C-g" leaves it unbound in `ghostel-mode-map' rather than
-  ;; sending BEL, so Emacs's own `keyboard-quit' runs.  Upstream honored
+  ;; sending BEL, so the `keyboard-quit' of Emacs runs.  Upstream honored
   ;; the exception list for C-g in 0.40; before that it was hardwired and
   ;; this needed a `keymap-unset' after the fact.  Set through customize:
   ;; the option's `:set' rebuilds the keymaps, and the C-g binding is

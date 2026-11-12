@@ -51,11 +51,11 @@ of this config's languages; .nix files would be invisible")
   ;; as a link.  Under evil that misfires.  evil-collection puts speedbar
   ;; buffers in normal state without `evil-make-overriding-map', so evil's
   ;; state keymap outranks `speedbar-mode-map' and mouse-2 resolves to
-  ;; `mouse-yank-primary'; evil's own `down-mouse-1' handler then rewrites
+  ;; `mouse-yank-primary'; the `down-mouse-1' handler of evil then rewrites
   ;; a press on a button into that mouse-2 and yanks into the tree.
   ;; Binding mouse-1 where evil will find it, and dropping the
   ;; [follow-link] entry so no rewrite happens, is the same treatment
-  ;; evil-collection gives its own list-view mode.  `dframe-click' acts on
+  ;; evil-collection gives a list-view mode.  `dframe-click' acts on
   ;; the button under point, so an expander toggles and a name visits,
   ;; matching RET.  The [follow-link] entry lives in `speedbar-mode-map'
   ;; itself, so clearing it needs `define-key' there; `evil-define-key'
@@ -329,7 +329,7 @@ Speedbar writes the depth into each line as its \"NN:\" prefix."
       (string-to-number (match-string 1)))))
 
 (defun ch/speedbar--project-drop-line ()
-  "Remove the tree line at point, along with any subtree beneath it.
+  "Remove the tree line at point, along with any subtree under it.
 Editing the tree in place keeps the expansion state of every other
 directory, which a full `speedbar-refresh' would throw away."
   (when-let* ((depth (ch/speedbar--project-line-depth)))

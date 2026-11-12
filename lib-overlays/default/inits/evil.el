@@ -27,7 +27,7 @@ Modes with a native render/preview shadow `<leader> c' in their own map
                          nil (file-name-nondirectory filename))
        ;; DEFAULT-FILENAME = `default-directory', as `find-file-read-args'
        ;; does: RET on the untouched directory input counts as null input
-       ;; and returns the default — without this it falls back to
+       ;; and returns the default.  Without this it falls back to
        ;; `buffer-file-name' and reopens the current file instead of dired.
        (read-file-name "Find file: " nil default-directory)))))
 

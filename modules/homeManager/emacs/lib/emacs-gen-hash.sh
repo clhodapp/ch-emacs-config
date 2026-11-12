@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# emacs_gen_hash BIN — print the 12-char store hash of the Emacs
+# emacs_gen_hash BIN: print the 12-char store hash of the Emacs
 # package BIN resolves into: the systemd instance name of that
 # generation's daemon.  The single implementation of this derivation;
 # the HM activation script and the emacsclient launchers both source

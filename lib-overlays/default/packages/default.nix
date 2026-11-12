@@ -2,7 +2,7 @@
 #
 # The in-tree Emacs packages, as an overlay on a nemacs package set:
 # each is built with the set's `nemacsBuild`, at the version of its
-# Emacs, and lands in the set under its own name, so a bundle names it
+# Emacs, and lands in the set under its name, so a bundle names it
 # as `epkgs.<name>` and a layer above can depend on it the same way.
 final: _prev:
 let

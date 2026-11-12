@@ -56,7 +56,7 @@
     ;; consult-eglot) offers its code actions and renames through
     ;; `refactor' and `refactor-rename' from the refactor package.
     (kbd "<leader> l a") #'refactor
-    ;; eglot has no find-definition command of its own; definitions go
+    ;; eglot has no find-definition command; definitions go
     ;; through its xref backend. Unlike `eglot-find-implementation', this
     ;; works on servers without textDocument/implementation (e.g. Python's).
     (kbd "<leader> l d") #'xref-find-definitions

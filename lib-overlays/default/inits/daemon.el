@@ -18,7 +18,7 @@
 ;;    must cover BOTH deletion paths: lisp `server-stop' deletes by
 ;;    `server-name', but the C core also unlinks the bind path it
 ;;    recorded at daemon startup (`internal--daemon-sockname') no
-;;    matter what `server-name' says — left unredirected, every
+;;    matter what `server-name' says.  Left unredirected, every
 ;;    rotated daemon deletes the new generation's canonical socket
 ;;    when it finally drains (field incident 2026-07-31)
 ;;  - a drain timer exits this Emacs once its last client frame is gone
@@ -29,9 +29,9 @@
 ;;    nothing can reach.  Upstream `server-stop-automatically' `empty'
 ;;    is unusable here because any subprocess with query-on-exit set
 ;;    (every ghostel shell, language servers) blocks it forever
-;;  - closing its last frame shows a notice — naming any unsaved
-;;    file-visiting buffers and any terminals running a job, both of
-;;    which the drain exit discards — and offers Cancel.  The notice is
+;;  - closing its last frame shows a notice that names any unsaved
+;;    file-visiting buffers and any terminals running a job (the drain
+;;    exit discards both) and offers Cancel.  The notice is
 ;;    an advice on `delete-frame', which every close path ends at, plus
 ;;    one on `server-delete-client' for blocking clients, which tear
 ;;    down before their frame goes (see
@@ -65,7 +65,7 @@ is not something the user closes."
 
 (defun ch-emacs-config-daemon--drain-p ()
   "Whether this tainted daemon has nothing left worth staying alive for.
-Drained means: no client frames (the daemon's own initial frame does
+Drained means: no client frames (the initial frame of the daemon does
 not count).  Frames are the only roots.  Unsaved buffers, terminal
 subprocesses running a job, and frameless server clients deliberately
 do not keep the daemon alive: the user decides when it dies by closing
@@ -98,7 +98,7 @@ path recorded at startup, deleted regardless of `server-name')."
   (unless ch-emacs-config-daemon--drain-timer
     (setq ch-emacs-config-daemon--drain-timer
           (run-with-timer 10 2 #'ch-emacs-config-daemon--drain-check)))
-  (message "Emacs updated — this daemon will close when the last frame closes"))
+  (message "Emacs updated: this daemon will close when the last frame closes"))
 
 (defun ch-emacs-config-daemon--busy-terminal-buffers ()
   "Buffers of terminal subprocesses currently running a foreground job.
@@ -144,7 +144,7 @@ Every way the user closes a frame ends at `delete-frame': the window
 manager's close button (`handle-delete-frame'), \\[delete-frame],
 evil's :q, and \\[save-buffers-kill-terminal] / :qa on a `nowait'
 frame (`server-save-buffers-kill-terminal' deletes the frame outright
-while the daemon's own initial frame keeps `frame-list' longer than
+while the initial frame of the daemon keeps `frame-list' longer than
 one, so its `save-buffers-kill-emacs' branch is unreachable).  Gating
 here covers all of them at once.  Declining leaves the frame open;
 confirming deletes it, after which the drain timer exits the daemon.

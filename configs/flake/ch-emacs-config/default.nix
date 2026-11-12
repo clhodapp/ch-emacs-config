@@ -85,8 +85,8 @@
             plainConsumerOutputs = callConsumer {
               path = self.outPath + "/tests/integration/plain-consumer";
             };
-            # merman: the mermaid renderer and language server, its own
-            # repo. The preview line: the language server and the mmdc
+            # merman: the mermaid renderer and language server, from the
+            # merman-nix repository. The preview line: the language server and the mmdc
             # subcommand exist from 0.8.0 on, and 0.8.0 has only
             # prereleases so far.
             merman = inputs.merman-nix.packages.${system}.merman-preview;
@@ -123,7 +123,7 @@
             markdownTableFixSrc = closure-lib.ch-emacs-config.packageSources.markdown-table-fix;
             renderDwimSrc = closure-lib.ch-emacs-config.packageSources.render-dwim;
             ghReviewSrc = closure-lib.ch-emacs-config.packageSources.gh-review;
-            # The editor's own tests: elisp and scripts the checks below
+            # The tests of the editor: elisp and scripts the checks below
             # run against a built Emacs, beside the other test trees.
             emacsTestsSrc = self.outPath + "/tests/emacs";
             # Batch-load the full init the way real startup does (package
@@ -157,9 +157,9 @@
             daemonInitSrc = closure-lib.ch-emacs-config.initFiles."daemon.el";
             # Rotation custody regression: a rotated daemon's exit must not
             # delete the canonical socket the new generation owns.  The exit
-            # unlink happens through TWO paths — lisp server-stop (server-name)
+            # unlink happens through TWO paths: lisp server-stop (server-name)
             # and the C core (internal--daemon-sockname, an internal variable
-            # we deliberately couple to in daemon.el's taint) — so this check
+            # we deliberately couple to in daemon.el's taint). This check
             # is the alarm that fires at build time if an Emacs bump renames
             # or rewires either path (field incident 2026-07-31).
             mkDrainCustodyCheck =

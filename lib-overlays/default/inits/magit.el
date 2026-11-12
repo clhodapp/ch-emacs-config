@@ -15,16 +15,16 @@
   :config
   ;; evil-collection makes magit's raw maps evil-overriding, which puts
   ;; magit's native SPC above the motion-state <leader> (the SPC entry in
-  ;; `evil-collection-key-blacklist' only stops evil-collection's own
-  ;; bindings). An explicit nil shadows magit's SPC — and the inherited
-  ;; `scroll-up-command' from magit-section-mode-map behind it — so
-  ;; lookup falls through to the leader. Scrolling stays on S-SPC / DEL.
+  ;; `evil-collection-key-blacklist' only stops the bindings of
+  ;; evil-collection). An explicit nil shadows magit's SPC, and the
+  ;; inherited `scroll-up-command' from magit-section-mode-map behind
+  ;; it, so lookup falls through to the leader. Scrolling stays on S-SPC / DEL.
   ;; Do not use `keymap-unset' with REMOVE: removal re-exposes the
   ;; parent binding at overriding priority.
   (define-key magit-mode-map (kbd "SPC") nil)
   (define-key magit-diff-mode-map (kbd "SPC") nil)
   (define-key magit-blame-read-only-mode-map (kbd "SPC") nil)
-  ;; S-SPC is GUI-only — a terminal sends plain SPC for it — so the
+  ;; S-SPC is GUI-only (a terminal sends plain SPC for it), so the
   ;; scroll family also needs a TUI-reachable key: C-SPC arrives
   ;; distinctly on a console (as C-@). DEL covers the other direction
   ;; everywhere already.

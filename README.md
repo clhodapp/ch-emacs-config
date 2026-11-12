@@ -13,7 +13,7 @@ init, and the packages behind it; the same for `jinx` spell checking,
 `consult-gh`, `render-dwim`, and the rest. A bundle is the unit you turn
 on. Bundles are a nemacs option: the nemacs module `default` defines
 this configuration's bundles, each on by default, and any other nemacs
-module can turn one off, append to its init, or add bundles of its own.
+module can turn a bundle off, append to its init, or add more bundles.
 
 **A daemon with custody rules.** The systemd unit is keyed by a hash of
 the Emacs generation, so a rebuild starts the new daemon rather than
@@ -30,7 +30,7 @@ index time and never notice a profile switch, so a launcher with baked
 paths eventually drives a daemon that no longer exists.
 
 **Pull request review.** `gh-review` opens a GitHub pull request in a
-tab of its own, laid out like GitHub's review page: a speedbar tree of
+separate tab, laid out like GitHub's review page: a speedbar tree of
 the changed files (or of every file), the diff as one card per file
 with rows that expand the unchanged lines around a change, and the
 conversation beside it. The file before, the file after, a whole-file
@@ -52,7 +52,8 @@ for diagram previews, merman for mermaid, and the language servers
 above. The built init names every one of them by its Nix store path
 (`lib-overlays/default/executables.nix` is the table), so
 the editor behaves the same on a host that has none of them installed,
-and the exported package is a working editor on its own. The fonts it
+and the exported package is a working editor without anything else
+installed. The fonts it
 names are covered the same way, by installation rather than by path
 (`lib-overlays/default/fonts.nix`), since a font resolves by
 family through fontconfig. What the host still has to provide is listed
@@ -70,7 +71,7 @@ under [Host requirements](#host-requirements).
 }
 ```
 
-The Home Manager module imports nemacs's own Home Manager module and
+The Home Manager module imports the Home Manager module of nemacs and
 puts the nemacs module `default` into `programs.nemacs.settings`, so
 everything about the editor itself is set there:
 
@@ -137,7 +138,7 @@ provides:
   toolchain of a dev shell. Formatting runs the rustfmt of that same
   toolchain.
 - Spell-check dictionaries. jinx checks through enchant, which reads
-  hunspell dictionaries from its own configuration directory; the
+  hunspell dictionaries from the enchant configuration directory; the
   Home Manager module provisions `en_US` there, the bare package does
   not.
 - Any program whose `executables` option was set to `null`.
@@ -156,11 +157,11 @@ recipe cannot rot.
 In CI the same `nix flake check` runs with the Nix store cached between
 runs, since a cold runner native-compiles the whole Emacs package set
 and takes most of an hour. A pull request that leaves `.github/` alone
-is checked by `main`'s copy of the workflow, in `main`'s context once
-its own check completes, and adds its build to the shared cache; one
-that changes the pipeline is checked by its own copy, under a cache
-only it can see. The comments at the top of the two
-workflow files say why that split is what makes the cache safe to write
+is checked by `main`'s copy of the workflow, in `main`'s context after
+the check of the pull request completes, and adds its build to the
+shared cache. A pull request that changes the pipeline is checked by
+the copy in the pull request, under a cache only that pull request can
+see. The comments at the top of the workflow files say why that split is what makes the cache safe to write
 from a pull request.
 
 ## Binary cache
@@ -176,10 +177,10 @@ already hold, so using it means using them too:
 | `https://nix-community.cachix.org` | `nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=` |
 | `https://numtide.cachix.org` | `numtide.cachix.org-1:2ps1kLBUWjxIneOy1Ik6cQjb41X0iXVXeHigGmycPPE=` |
 
-The flake's `nixConfig` declares all three, so a direct `nix build` or
+The flake's `nixConfig` declares these substituters, so a direct `nix build` or
 `nix flake check` here uses them once accepted: answer Nix's prompt, or
 pass `--accept-flake-config`. A flake that consumes this one
-as an input must add them to its own `extra-substituters` and
+as an input must add them to its `extra-substituters` and
 `extra-trusted-public-keys`; Nix does not carry an input's settings
 into the consumer.
 

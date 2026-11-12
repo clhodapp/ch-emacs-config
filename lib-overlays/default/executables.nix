@@ -8,7 +8,7 @@
 #
 # Each entry is a package or null. A package is closed over: the init
 # sets the variable the consuming package reads its program from, after
-# that package loads, so the package's own bare-name default never wins.
+# that package loads, so the bare-name default of the package never wins.
 # consult-gh is the exception: it looks up a bare "gh" it does not let
 # you configure, so its bin directory goes on `exec-path' instead. Null
 # leaves the program to PATH at run time; the README lists what a host
