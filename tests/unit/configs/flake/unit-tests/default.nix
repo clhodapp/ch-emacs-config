@@ -6,6 +6,6 @@
   perSystem =
     { pkgs, ... }:
     {
-      checks.unit-smoke-success = pkgs.runCommand "unit-smoke-success" { } "touch $out";
+      checks.smoke-success = pkgs.runCommand "unit-smoke-success" { } "touch $out";
     };
 }

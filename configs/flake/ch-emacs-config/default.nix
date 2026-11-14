@@ -26,11 +26,60 @@
     nemacs.exported = modules: { inherit (modules) default; };
   };
 
-  partitionedAttrs.checks = "checks";
-  # packages are built from the same emacs-overlay nixpkgs as the checks
-  # that validate them; no independent pin is possible without duplicating
-  # the shared let setup, so they share the checks partition.
-  partitionedAttrs.packages = "checks";
+  # The editors of the nemacs module `default`, on each Emacs base
+  # package, and the package manifest of the first. The flake-parts
+  # integration checks that each package builds, as
+  # `<package>-package`.
+  perSystem =
+    { pkgs, ... }:
+    let
+      # The configuration on one Emacs base package. The exported
+      # packages close over every program the init spawns.
+      mkEmacsDefault =
+        emacsPackage:
+        closure-lib.nemacs.evalNemacs {
+          inherit pkgs;
+          modules = [
+            lib.caisson.modules.nemacs.default
+            {
+              key = "ch-emacs-config.checks.package";
+              package = emacsPackage;
+            }
+          ];
+        };
+      emacsConfiguration = mkEmacsDefault pkgs.ch-emacs-config.emacs;
+      emacsPgtkConfiguration = mkEmacsDefault pkgs.ch-emacs-config.emacs-pgtk;
+      emacsOverlayRev = inputs.emacs-overlay.rev or inputs.emacs-overlay.sourceInfo.rev or null;
+    in
+    {
+      packages = {
+        emacs = emacsConfiguration.config.build.package;
+        emacs-pgtk = emacsPgtkConfiguration.config.build.package;
+        # The package manifest of the exported Emacs, written out as
+        # JSON: what is installed and at which version.
+        emacs-package-manifest = pkgs.writeText "emacs-package-manifest.json" (
+          builtins.toJSON (
+            closure-lib.ch-emacs-config.mkPackageManifest {
+              inherit pkgs emacsOverlayRev;
+              lib = pkgs.lib;
+              inherit (emacsConfiguration) config;
+            }
+          )
+        );
+      };
+    };
+
+  # The checks of ch-emacs-config, with the pins of tests/dependencies
+  # that only the checks need (configs/flake/checks). The caisson top
+  # gathers the checks of every configuration declared inside it into
+  # its `checks` output. This selector passes the configuration up to
+  # nothing, so a flake that reads the exports of ch-emacs-config
+  # evaluates neither the configuration nor its pins.
+  caisson.flake-parts.configurations.checks = lib.caisson.flake-parts.mkConfiguration {
+    inherit (lib.caisson.pins.flake-compat ../../../tests/dependencies) dependencies;
+  };
+  caisson.flake-parts.exported = _: { };
+
   partitionedAttrs.formatter = "formatter";
 
   partitions.formatter = {
@@ -43,370 +92,6 @@
         # module supplies from the `default` package config declared on
         # mkLib (configs/nixpkgsConfig/default).
         perSystem.treefmt.programs.nixfmt.enable = true;
-      };
-  };
-
-  partitions.checks = {
-    extraInputs = (lib.caisson.pins.flake-compat ../../../tests/dependencies).dependencies;
-    module =
-      { inputs, self, ... }:
-      {
-        imports = [ inputs.treefmt-nix.flakeModule ];
-        # The package set the checks build against is the `default`
-        # package config declared on mkLib, with the registry's default
-        # selection: `default` after the `emacs-packages` entry it imports,
-        # and `merman-nix/default`. The checks then validate exactly what a
-        # consumer applying `ch-emacs-config/default` gets.
-        perSystem =
-          { pkgs, system, ... }:
-          let
-            consumerPool = {
-              inherit (inputs)
-                caisson
-                flake-parts
-                home-manager
-                nixpkgs
-                ;
-              parent = self;
-            };
-            callConsumer =
-              args:
-              closure-lib.caisson.callConsumerFlake (
-                {
-                  pool = consumerPool;
-                }
-                // args
-              );
-            unitOutputs = callConsumer {
-              path = self.outPath + "/tests/unit";
-            };
-            # The README's plain-flake recipe (no flake-parts, no
-            # framework), held as a check.
-            plainConsumerOutputs = callConsumer {
-              path = self.outPath + "/tests/integration/plain-consumer";
-            };
-            # merman: the mermaid renderer and language server, from the
-            # merman-nix repository. The preview line: the language server and the mmdc
-            # subcommand exist from 0.8.0 on, and 0.8.0 has only
-            # prereleases so far.
-            merman = inputs.merman-nix.packages.${system}.merman-preview;
-            # The configuration on one Emacs base package. The exported
-            # packages close over every program the init spawns.
-            mkEmacsDefault =
-              emacsPackage:
-              closure-lib.nemacs.evalNemacs {
-                inherit pkgs;
-                modules = [
-                  self.modules.nemacs.default
-                  {
-                    key = "ch-emacs-config.checks.package";
-                    package = emacsPackage;
-                  }
-                ];
-              };
-            emacsConfiguration = mkEmacsDefault pkgs.ch-emacs-config.emacs;
-            emacsPgtkConfiguration = mkEmacsDefault pkgs.ch-emacs-config.emacs-pgtk;
-            editor = emacsConfiguration.config.build.package;
-            editorPgtk = emacsPgtkConfiguration.config.build.package;
-            emacsOverlayRev = inputs.emacs-overlay.rev or inputs.emacs-overlay.sourceInfo.rev or null;
-            # The package manifest of the exported Emacs, written out as
-            # JSON: what is installed and at which version.
-            emacsPackageManifest = pkgs.writeText "emacs-package-manifest.json" (
-              builtins.toJSON (
-                closure-lib.ch-emacs-config.mkPackageManifest {
-                  inherit pkgs emacsOverlayRev;
-                  lib = pkgs.lib;
-                  inherit (emacsConfiguration) config;
-                }
-              )
-            );
-            markdownTableFixSrc = closure-lib.ch-emacs-config.packageSources.markdown-table-fix;
-            renderDwimSrc = closure-lib.ch-emacs-config.packageSources.render-dwim;
-            ghReviewSrc = closure-lib.ch-emacs-config.packageSources.gh-review;
-            # The tests of the editor: elisp and scripts the checks below
-            # run against a built Emacs, beside the other test trees.
-            emacsTestsSrc = self.outPath + "/tests/emacs";
-            # Batch-load the full init the way real startup does (package
-            # activation fires the autoload hook).  load-init.el traps the
-            # error-level warnings use-package demotes runtime errors to.
-            mkInitLoadCheck =
-              name: editor:
-              pkgs.runCommand "${name}-init-load" { } ''
-                export HOME="$TMPDIR"
-                ${editor}/bin/emacs --batch -l ${emacsTestsSrc}/load-init.el
-                touch $out
-              '';
-            # Boot a real daemon (early-init + full startup path, no frames)
-            # and probe init health over emacsclient.  The probe expression
-            # must stay free of single quotes for the shell quoting to hold.
-            mkDaemonCheck =
-              name: editor: emacsPackage:
-              pkgs.runCommand "${name}-daemon-startup" { } ''
-                export HOME="$TMPDIR/home"
-                export XDG_RUNTIME_DIR="$TMPDIR/run"
-                mkdir -p "$HOME"
-                mkdir -p -m 700 "$XDG_RUNTIME_DIR"
-                ${editor}/bin/emacs --daemon=smoke
-                result="$(${emacsPackage}/bin/emacsclient -s smoke --eval \
-                  '(progn (load "${emacsTestsSrc}/daemon-probe.el") (ch-emacs-config-daemon-probe))')"
-                ${emacsPackage}/bin/emacsclient -s smoke --eval '(kill-emacs 0)' 2>/dev/null || true
-                echo "$result"
-                [[ "$result" == '"OK"' ]]
-                touch $out
-              '';
-            daemonInitSrc = closure-lib.ch-emacs-config.initFiles."daemon.el";
-            # Rotation custody regression: a rotated daemon's exit must not
-            # delete the canonical socket the new generation owns.  The exit
-            # unlink happens through TWO paths: lisp server-stop (server-name)
-            # and the C core (internal--daemon-sockname, an internal variable
-            # we deliberately couple to in daemon.el's taint). This check
-            # is the alarm that fires at build time if an Emacs bump renames
-            # or rewires either path (field incident 2026-07-31).
-            mkDrainCustodyCheck =
-              name: emacsPackage:
-              pkgs.runCommand "${name}-drain-custody" { } ''
-                export HOME="$TMPDIR/home"
-                export XDG_RUNTIME_DIR="$TMPDIR/run"
-                mkdir -p "$HOME"
-                mkdir -p -m 700 "$XDG_RUNTIME_DIR"
-                sockdir="$XDG_RUNTIME_DIR/emacs"
-                ${emacsPackage}/bin/emacs -Q -l ${daemonInitSrc} --daemon=server
-                mv "$sockdir/server" "$sockdir/server-drain-test"
-                ${emacsPackage}/bin/emacsclient --socket-name="$sockdir/server-drain-test" \
-                  --eval '(ch-emacs-config-daemon-taint "server-drain-test")'
-                touch "$sockdir/server"
-                ${emacsPackage}/bin/emacsclient --socket-name="$sockdir/server-drain-test" \
-                  --eval "(kill-emacs)" 2>/dev/null || true
-                for _ in $(seq 100); do
-                  [[ -S "$sockdir/server-drain-test" ]] || break
-                  sleep 0.1
-                done
-                [[ ! -e "$sockdir/server-drain-test" ]]
-                [[ -e "$sockdir/server" ]]
-                touch $out
-              '';
-            # Last-frame gate: a tainted daemon asks before its last client
-            # frame is deleted on every close path (direct `delete-frame',
-            # the window-manager close event, C-x C-c on a nowait frame),
-            # keeps the frame when declined, stays silent for a non-last
-            # frame, and drains once the last frame is confirmed away.  The
-            # gate is an advice on the `delete-frame' primitive reached from
-            # native-compiled frame.el and server.el, so this also alarms if
-            # an Emacs bump breaks advice on primitives for native callers.
-            # Real tty client frames come from tests/pty-run.py.
-            mkLastFrameGateCheck =
-              name: emacsPackage:
-              pkgs.runCommand "${name}-last-frame-gate" { nativeBuildInputs = [ pkgs.python3 ]; } ''
-                export HOME="$TMPDIR/home"
-                export XDG_RUNTIME_DIR="$TMPDIR/run"
-                mkdir -p "$HOME"
-                mkdir -p -m 700 "$XDG_RUNTIME_DIR"
-                EMACS=${emacsPackage}/bin/emacs EMACSCLIENT=${emacsPackage}/bin/emacsclient \
-                  bash ${emacsTestsSrc}/daemon-last-frame-gate.sh ${daemonInitSrc}
-                touch $out
-              '';
-            # Evaluate the home-manager module end to end: option types, the
-            # programs.nemacs wiring, bundle-conditional home.packages, and
-            # the daemon unit all get forced by the activation package.
-            #
-            # The module also contributes a skill and hooks to an agent
-            # module's options when one is present. That wiring is
-            # deliberately not exercised here: this flake knows nothing
-            # about the agent side, and the check that both halves compose
-            # belongs to whichever repo imports both.
-            emacsHomeManagerConfiguration = inputs.home-manager.lib.homeManagerConfiguration {
-              inherit pkgs;
-              modules = [
-                self.modules.homeManager.emacs
-                {
-                  home.username = "tester";
-                  home.homeDirectory = "/home/tester";
-                  home.stateVersion = "25.05";
-                  ch-emacs-config.emacs = {
-                    enable = true;
-                    # Forces the jinx personal-dictionary option type and
-                    # the merge activation entry through evaluation.
-                    jinxPersonalWords = [ "hmcheckword" ];
-                  };
-                  # `package` is left at its default so the check covers
-                  # the overlay-backed selection.
-                }
-              ];
-            };
-          in
-          {
-            checks =
-              unitOutputs.checks.${system}
-              // plainConsumerOutputs.checks.${system}
-              // {
-                emacs = editor;
-                emacs-pgtk = editorPgtk;
-                emacs-init-load = mkInitLoadCheck "emacs" editor;
-                emacs-pgtk-init-load = mkInitLoadCheck "emacs-pgtk" editorPgtk;
-                emacs-daemon-startup = mkDaemonCheck "emacs" editor pkgs.ch-emacs-config.emacs;
-                emacs-pgtk-daemon-startup = mkDaemonCheck "emacs-pgtk" editorPgtk pkgs.ch-emacs-config.emacs-pgtk;
-                emacs-drain-custody = mkDrainCustodyCheck "emacs" pkgs.ch-emacs-config.emacs;
-                emacs-pgtk-drain-custody = mkDrainCustodyCheck "emacs-pgtk" pkgs.ch-emacs-config.emacs-pgtk;
-                emacs-last-frame-gate = mkLastFrameGateCheck "emacs" pkgs.ch-emacs-config.emacs;
-                emacs-pgtk-last-frame-gate = mkLastFrameGateCheck "emacs-pgtk" pkgs.ch-emacs-config.emacs-pgtk;
-                emacs-home-manager-module = emacsHomeManagerConfiguration.activationPackage;
-                # The tic-check Stop hook with the seeded table against
-                # synthetic payloads.  First stop: a block headed
-                # "tic-check: check" naming each matched entry and count and
-                # both verdict lines on a hit (whole words only, "yourself"
-                # excluded; the em-dash and "click" entries fire on prose),
-                # silence when the only matches sit inside a code fence or
-                # backtick span, on a clean message, on a payload without
-                # the field, and on non-JSON stdin.  Second stop
-                # (stop_hook_active): a block headed "tic-check: rewrite" on
-                # the "tic" verdict only; silence on the clean verdict and
-                # on a regenerated message.
-                # test file activates packages to get it on the load path.
-                markdown-table-fix-ert = pkgs.runCommand "markdown-table-fix-ert" { } ''
-                  export HOME="$TMPDIR"
-                  ${editor}/bin/emacs --batch \
-                    -L ${markdownTableFixSrc} \
-                    -l tests/markdown-table-fix-ert.el \
-                    -f ert-run-tests-batch-and-exit
-                  touch $out
-                '';
-                # The five behaviors ch-evil-ghostel layers on upstream
-                # evil-ghostel, checked at the boundary that matters: which
-                # ghostel function each one calls, and with what arguments.
-                # Real ghostel and evil-ghostel are loaded, so an upstream
-                # rename or arity change fails here instead of at runtime.
-                ch-evil-ghostel-ert = pkgs.runCommand "ch-evil-ghostel-ert" { } ''
-                  export HOME="$TMPDIR"
-                  ${editor}/bin/emacs --batch \
-                    -f package-activate-all \
-                    -l ${emacsTestsSrc}/ch-evil-ghostel-ert.el \
-                    -f ert-run-tests-batch-and-exit
-                  touch $out
-                '';
-                # The consult-ghostel wiring, against the fully loaded init:
-                # the init loads it only after both ghostel and consult,
-                # which the init-load check never loads, so whether the mode
-                # comes on and where the leader keys land is invisible there.
-                consult-ghostel-ert = pkgs.runCommand "consult-ghostel-ert" { } ''
-                  export HOME="$TMPDIR"
-                  ${editor}/bin/emacs --batch \
-                    -l ${emacsTestsSrc}/load-init.el \
-                    -l ${emacsTestsSrc}/consult-ghostel-ert.el \
-                    -f ert-run-tests-batch-and-exit
-                  touch $out
-                '';
-                # The speedbar Project tree's delete commands, against the
-                # fully loaded init: what they depend on is how the tree's
-                # own rendering, evil's keymap precedence and
-                # `context-menu-mode' combine, none of which the init-load
-                # check can see.  A token-reading regression there is
-                # silent, since the tree still renders and only the
-                # commands stop finding anything.
-                speedbar-project-ert = pkgs.runCommand "speedbar-project-ert" { } ''
-                  export HOME="$TMPDIR"
-                  ${editor}/bin/emacs --batch \
-                    -l ${emacsTestsSrc}/load-init.el \
-                    -l ${emacsTestsSrc}/speedbar-project-ert.el \
-                    -f ert-run-tests-batch-and-exit
-                  touch $out
-                '';
-                # The mode-line indicators, which exist to render nothing
-                # in the normal case: a saved, writable, local, UTF-8
-                # buffer must contribute no characters to the left edge.
-                # The functions read buffer-local state and return
-                # strings, so --batch exercises them as redisplay does.
-                mode-line-ert = pkgs.runCommand "mode-line-ert" { } ''
-                  export HOME="$TMPDIR"
-                  ${editor}/bin/emacs --batch \
-                    -f package-activate-all \
-                    -l ${emacsTestsSrc}/mode-line-ert.el \
-                    -f ert-run-tests-batch-and-exit
-                  touch $out
-                '';
-                # render-dwim's extraction and normalization, plus the
-                # render and detect paths end to end (merman on PATH).
-                render-dwim-ert =
-                  pkgs.runCommand "render-dwim-ert"
-                    {
-                      nativeBuildInputs = [ merman ];
-                    }
-                    ''
-                      export HOME="$TMPDIR"
-                      ${editor}/bin/emacs --batch \
-                        -L ${renderDwimSrc} \
-                        -l ${emacsTestsSrc}/render-dwim-ert.el \
-                        -f ert-run-tests-batch-and-exit
-                      touch $out
-                    '';
-                # gh-review without GitHub: the diff parser, the line plan
-                # behind context expansion, rendering, and the fetch and
-                # diff round trip against a local repository standing in
-                # for GitHub (git on PATH).
-                gh-review-ert =
-                  pkgs.runCommand "gh-review-ert"
-                    {
-                      nativeBuildInputs = [ pkgs.git ];
-                    }
-                    ''
-                      export HOME="$TMPDIR"
-                      ${editor}/bin/emacs --batch \
-                        -L ${ghReviewSrc} \
-                        -l ${emacsTestsSrc}/gh-review-ert.el \
-                        -f ert-run-tests-batch-and-exit
-                      touch $out
-                    '';
-                # Behavioral contract of the personal-dictionary merge: fresh
-                # creation, append-only dedup against runtime-saved words,
-                # idempotence, trailing-newline repair, declared-list hygiene.
-                jinx-merge-personal-dict =
-                  let
-                    merge = closure-lib.ch-emacs-config.mkJinxMergePersonalDict {
-                      inherit pkgs;
-                    };
-                  in
-                  pkgs.runCommand "jinx-merge-personal-dict-check" { } ''
-                    merge=${lib.getExe merge}
-                    printf '%s\n' alpha beta gamma > declared
-
-                    # fresh: no dictionary yet, parent dir created
-                    "$merge" declared fresh/en_US.dic
-                    printf '%s\n' alpha beta gamma > expected
-                    diff -u expected fresh/en_US.dic
-
-                    # merge: runtime-saved words kept in place, only missing appended
-                    printf '%s\n' runtime beta > merged.dic
-                    "$merge" declared merged.dic
-                    printf '%s\n' runtime beta alpha gamma > expected
-                    diff -u expected merged.dic
-
-                    # idempotent: a second run must not change the file
-                    cp merged.dic before.dic
-                    "$merge" declared merged.dic
-                    diff -u before.dic merged.dic
-
-                    # missing trailing newline is repaired, words cannot fuse
-                    printf 'runtime' > ragged.dic
-                    "$merge" declared ragged.dic
-                    printf '%s\n' runtime alpha beta gamma > expected
-                    diff -u expected ragged.dic
-
-                    # blanks and duplicates inside the declared list are dropped
-                    printf '%s\n' alpha "" alpha delta > messy-declared
-                    : > empty.dic
-                    "$merge" messy-declared empty.dic
-                    printf '%s\n' alpha delta > expected
-                    diff -u expected empty.dic
-
-                    touch $out
-                  '';
-              };
-            packages = {
-              emacs = editor;
-              emacs-pgtk = editorPgtk;
-              emacs-package-manifest = emacsPackageManifest;
-            };
-            treefmt.programs.nixfmt.enable = true;
-          };
       };
   };
 

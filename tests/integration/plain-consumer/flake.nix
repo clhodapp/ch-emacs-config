@@ -46,7 +46,7 @@
       };
     in
     {
-      checks.${system}.plain-consumer =
+      checks.${system}.activation =
         # The module's default base package is the overlay's selection.
         assert
           homeManagerConfiguration.config.programs.nemacs.settings.package.outPath
