@@ -3,7 +3,7 @@
 
 ;;; Commentary:
 ;;
-;; Five behaviors layered on upstream `evil-ghostel', using ghostel's
+;; Six behaviors layered on upstream `evil-ghostel', using ghostel's
 ;; public API only so upstream can move without this file moving with
 ;; it.  Everything here is additive: no upstream definition is
 ;; replaced, and each piece degrades to upstream's behavior if its
@@ -29,7 +29,9 @@
 (require 'ghostel-funcs)
 
 (declare-function ghostel-alt-screen-p "ghostel")
+(declare-function ghostel-cursor-point "ghostel")
 (declare-function ghostel-paste-string "ghostel")
+(declare-function ghostel-point-on-cursor-row-p "ghostel")
 (declare-function ghostel-readonly-exit "ghostel")
 (declare-function ghostel-send-key "ghostel")
 (declare-function ghostel-yank "ghostel")
@@ -61,15 +63,38 @@ input line to move point along."
       (dotimes (_ (prefix-numeric-value count))
         (ghostel-paste-string text)))))
 
+;;; Paste from off the prompt row
+;;
+;; At a shell prompt upstream moves the shell cursor to point before
+;; pasting, with one up or down arrow per row between them.  The shell
+;; reads those arrows as history navigation, so pasting with point on
+;; an output row above the prompt recalls an older command and the
+;; paste lands inside it.  Upstream's insert-state entry avoids the
+;; same arrows by moving point to the terminal cursor when the rows
+;; differ; paste gets that treatment here.
+
+(defun ch/evil-ghostel--move-to-cursor-row ()
+  "Move point to the terminal cursor when it is on another row.
+Does nothing when point is already on the cursor's row, so a paste
+there still lands at point."
+  (unless (ghostel-point-on-cursor-row-p)
+    (when-let* ((cursor (ghostel-cursor-point)))
+      (goto-char cursor))))
+
 (defun ch/evil-ghostel--around-paste (orig-fn &optional count register yank-handler)
   "Paste into a TUI when one is running, else let ORIG-FN decide.
 ORIG-FN is `evil-ghostel-paste-after' or `-before', called with COUNT,
 REGISTER and YANK-HANDLER.  Both take the same arguments and both want
 the same treatment here, since a TUI has no before-or-after cursor cell
-to distinguish."
-  (if (ch/evil-ghostel--tui-p)
-      (ch/evil-ghostel--tui-paste count register)
-    (funcall orig-fn count register yank-handler)))
+to distinguish.  At a live prompt, point first moves to the terminal
+cursor if it is on another row."
+  (cond
+   ((ch/evil-ghostel--tui-p)
+    (ch/evil-ghostel--tui-paste count register))
+   (t
+    (when (evil-ghostel--prompt-active-p)
+      (ch/evil-ghostel--move-to-cursor-row))
+    (funcall orig-fn count register yank-handler))))
 
 ;;; Kill-ring yank inside a TUI
 ;;

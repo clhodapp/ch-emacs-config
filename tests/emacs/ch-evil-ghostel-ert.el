@@ -4,7 +4,7 @@
 ;;; Commentary:
 ;;
 ;; The point of these tests is the interface, not the terminal.  This
-;; package layers five behaviors on upstream evil-ghostel using only
+;; package layers six behaviors on upstream evil-ghostel using only
 ;; ghostel's public functions, and the value of that is that upstream
 ;; can move without dragging a vendored fork along.  So each test
 ;; records what reached ghostel: the function called and its arguments.
@@ -66,6 +66,8 @@ assertion fails."
 (ert-deftest ch-evil-ghostel-public-api-present ()
   "Every ghostel function this package calls exists, with the arity used."
   (dolist (entry '((ghostel-alt-screen-p . 0)
+                   (ghostel-cursor-point . 0)
+                   (ghostel-point-on-cursor-row-p . 0)
                    (ghostel-send-key . 1)
                    (ghostel-paste-string . 1)
                    (ghostel-readonly-exit . 0)
@@ -124,6 +126,41 @@ assertion fails."
        (lambda (&rest args) (setq called args)) 2 ?b 'handler)
       (should (equal called '(2 ?b handler)))
       (should (null ch-evil-ghostel-tests--sent)))))
+
+;;; Paste from off the prompt row
+
+(defmacro ch-evil-ghostel-tests--with-cursor (on-row cursor &rest body)
+  "Run BODY at a prompt whose terminal cursor is at buffer position CURSOR.
+ON-ROW is what `ghostel-point-on-cursor-row-p' reports for point."
+  (declare (indent 2))
+  `(ch-evil-ghostel-tests--with-terminal nil
+     (cl-letf (((symbol-function 'ghostel-point-on-cursor-row-p)
+                (lambda (&optional _pos) ,on-row))
+               ((symbol-function 'ghostel-cursor-point)
+                (lambda () ,cursor)))
+       (with-temp-buffer
+         (insert "output line\n$ typed")
+         ,@body))))
+
+(ert-deftest ch-evil-ghostel-paste-off-row-moves-to-cursor ()
+  "With point above the prompt, upstream's paste starts at the cursor.
+Starting from point instead would send up arrows, which the shell
+reads as history navigation."
+  (ch-evil-ghostel-tests--with-cursor nil 18
+    (goto-char 3)
+    (let ((point-seen nil))
+      (ch/evil-ghostel--around-paste
+       (lambda (&rest _) (setq point-seen (point))) 1 nil nil)
+      (should (equal point-seen 18)))))
+
+(ert-deftest ch-evil-ghostel-paste-on-row-keeps-point ()
+  "With point on the prompt row, upstream's paste starts at point."
+  (ch-evil-ghostel-tests--with-cursor t 18
+    (goto-char 16)
+    (let ((point-seen nil))
+      (ch/evil-ghostel--around-paste
+       (lambda (&rest _) (setq point-seen (point))) 1 nil nil)
+      (should (equal point-seen 16)))))
 
 ;;; Kill-ring yank inside a TUI
 

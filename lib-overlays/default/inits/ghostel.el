@@ -48,8 +48,8 @@
     :config
     (define-key ghostel-mode-map (kbd "C-c <escape>") #'ch/ghostel-toggle-escape-routing))
 
-  ;; The local additions (TUI paste, kill-ring C-y, arrow passthrough,
-  ;; S-ESC, ESC out of copy mode) bind into `evil-ghostel-mode-map' at
+  ;; The local additions (TUI paste, prompt paste from another row,
+  ;; kill-ring C-y, arrow passthrough, S-ESC, ESC out of copy mode) bind into `evil-ghostel-mode-map' at
   ;; load and advise upstream's paste commands through a global minor
   ;; mode, so the package loads once upstream does and the mode is
   ;; switched on there.

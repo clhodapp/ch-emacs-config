@@ -292,7 +292,7 @@ in
             before = "-f package-activate-all";
           };
           category = "build";
-          description = "the five behaviors ch-evil-ghostel layers on evil-ghostel call the ghostel functions they should, with the arguments they should";
+          description = "the six behaviors ch-evil-ghostel layers on evil-ghostel call the ghostel functions they should, with the arguments they should";
         };
         # The init loads consult-ghostel only after both ghostel and
         # consult, which the init-load check never loads.
