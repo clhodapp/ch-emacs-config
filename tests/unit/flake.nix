@@ -22,6 +22,6 @@
       };
     in
     lib.caisson.flake-parts.mkTopConfiguration {
-      configModule = lib.caisson.configs.flake.unit-tests;
+      configModule = lib.caisson.configs.flake-parts.unit-tests;
     };
 }
