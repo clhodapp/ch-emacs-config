@@ -41,6 +41,11 @@
       # inputs and the carried upstream fixes.
       emacsPackageOverrides = import ./emacs-packages/overrides.nix;
 
+      # `{ pkgs, systemd }` to the package of programs that start the
+      # managed daemon and connect to it, for the `extraPaths` of a
+      # nemacs configuration.
+      mkDaemonLaunchers = import ./daemon-launchers;
+
       # `{ pkgs }` to the program that merges declared words into the
       # enchant personal dictionary at activation.
       mkJinxMergePersonalDict = import ./jinx-merge-personal-dict.nix;

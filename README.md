@@ -1,9 +1,9 @@
 # ch-emacs-config
 
 A declarative Emacs configuration: the editor, its packages and its
-init as a [nemacs](https://github.com/clhodapp/nemacs) module, and a
-Home Manager module that adds a daemon that survives generation
-switches, all built from Nix.
+init as a [nemacs](https://github.com/clhodapp/nemacs) module, with
+the fonts and the programs that start a daemon that survives generation
+switches carried in the editor package, all built from Nix.
 
 ## What it provides
 
@@ -15,19 +15,26 @@ on. Bundles are a nemacs option: the nemacs module `default` defines
 this configuration's bundles, each on by default, and any other nemacs
 module can turn a bundle off, append to its init, or add more bundles.
 
-**A daemon with custody rules.** The systemd unit is keyed by a hash of
-the Emacs generation, so a rebuild starts the new daemon rather than
-leaving the old one serving stale code. A rotating daemon's exit must
-not delete the socket the new generation owns, which is asserted by a
-check rather than hoped for: the exit unlink happens through two paths,
-and an Emacs bump that renames either one fails the build.
+**A daemon with custody rules.** The systemd user unit is keyed by a
+hash of the Emacs generation, so a new generation starts a new daemon
+rather than leaving the old one serving stale code. A launcher starts
+the unit when the generation it belongs to has none, and retires the
+daemon that holds the socket: the socket is renamed, and that daemon is
+told it is replaced and closes when its last frame does. A retired
+daemon's exit must not delete the socket the new generation holds,
+which is asserted by a check rather than hoped for: the exit unlink
+happens through two paths, and an Emacs bump that renames either one
+fails the build.
 
-**Launchers that resolve at run time.** The desktop entry and `$EDITOR`
-point at scripts in the profile, and those scripts find the daemon and
-`emacsclient` when they run rather than when they were built. Desktop
-caches, taskbar pins, and long-lived shells all capture what they saw at
-index time and never notice a profile switch, so a launcher with baked
-paths eventually drives a daemon that no longer exists.
+**Launchers that resolve at run time.** The editor package carries the
+launchers (`emacsclient-desktop-launcher`, `emacsclient-editor-launcher`
+and `ch-emacs-config-daemon-ensure`), so `nemacs switch` replaces them
+together with the editor. The desktop entry and `$EDITOR` name them by
+their path in the Nix profile of the editor, and each launcher finds
+`emacs` and `emacsclient` beside itself when it runs. Desktop caches,
+taskbar pins, and long-lived shells all capture what they saw at index
+time and never notice a profile switch, so a launcher with baked paths
+eventually drives a daemon that no longer exists.
 
 **Pull request review.** `gh-review` opens a GitHub pull request in a
 separate tab, laid out like GitHub's review page: a speedbar tree of
@@ -53,40 +60,46 @@ above. The built init names every one of them by its Nix store path
 (`lib-overlays/default/executables.nix` is the table), so
 the editor behaves the same on a host that has none of them installed,
 and the exported package is a working editor without anything else
-installed. The fonts it
-names are covered the same way, by installation rather than by path
-(`lib-overlays/default/fonts.nix`), since a font resolves by
-family through fontconfig. What the host still has to provide is listed
-under [Host requirements](#host-requirements).
+installed. The fonts it names are carried in the editor package under
+`share/fonts` (`lib-overlays/default/fonts.nix`), since a font resolves
+by family through fontconfig. What the host still has to provide is
+listed under [Host requirements](#host-requirements).
 
 ## Use it
 
+A [caisson](https://github.com/nix-caisson/caisson) flake lists this
+flake in `projects`, and the editor is a nemacs configuration declared
+inside a home-manager configuration. The nemacs module `default` of
+this flake configures it, and everything about the editor itself is set
+in that nemacs configuration:
+
 ```nix
 {
-  inputs.ch-emacs-config.url = "github:clhodapp/ch-emacs-config";
-
-  # in a Home Manager configuration that imports
+  # in a home-manager configuration that imports
   # ch-emacs-config.modules.homeManager.emacs:
-  #   ch-emacs-config.emacs.enable = true;
-}
-```
+  ch-emacs-config.emacs.enable = true;
 
-The Home Manager module imports the Home Manager module of nemacs and
-puts the nemacs module `default` into `programs.nemacs.settings`, so
-everything about the editor itself is set there:
-
-```nix
-{
-  programs.nemacs.settings = {
-    package = pkgs.ch-emacs-config.emacs-pgtk;
-    bundles.jinx.enable = false;
+  caisson.nemacs.configurations.editor = lib.caisson.nemacs.mkConfiguration {
+    configModule = {
+      package = pkgs.ch-emacs-config.emacs-pgtk;
+      bundles.jinx.enable = false;
+    };
   };
 }
 ```
 
-Without Home Manager, `modules.nemacs.default` is a nemacs module like
-any other, for `nemacs.lib.nemacs.evalNemacs` or the NixOS module of
-nemacs.
+The home-manager configuration keeps the editor in a Nix profile of the
+user, `$HOME/.local/state/caisson/profiles/nemacs/editor`, puts its
+`bin` directory on `PATH`, and adds its `share/fonts` directory to
+fontconfig. `nemacs switch` from the nemacs repository updates the
+editor without activating the home-manager configuration. What the
+home-manager module `emacs` adds is the desktop entry and `$EDITOR`,
+which name the launchers in that profile, and the spell-check
+dictionaries. `ch-emacs-config.emacs.configuration` names the nemacs
+configuration that is the editor, `editor` by default.
+
+Elsewhere, `modules.nemacs.default` is a nemacs module like any other,
+for `nemacs.lib.nemacs.evalNemacs`.
 
 The flake also exports the Emacs packages it validates against
 (`emacs`, `emacs-pgtk`, `emacs-nox`) and an overlay carrying them.
@@ -110,11 +123,10 @@ The fonts work the same way, as `ch-emacs-config.fonts.<name>`
 (`default`, `symbols`, `emoji`, `emojiFallback`), with the table in
 `lib-overlays/default/fonts.nix`. They cannot be pinned by
 store path the way a program can, because Emacs resolves a font by
-family through fontconfig, so the Home Manager module installs each one
-and the nemacs module emits the init lines naming it. Setting one to
-`null` drops both halves:
-the package and the line naming its family, leaving that font to the
-host. `ch-emacs-config.fontHeight` sets the `:height` of the
+family through fontconfig, so the editor package carries each one and
+the nemacs module emits the init lines naming it. Setting one to
+`null` drops both halves: the package and the line naming its family,
+leaving that font to the host. `ch-emacs-config.fontHeight` sets the `:height` of the
 default face, which is worth revisiting when substituting the default
 font, since families differ in how much of the em they fill.
 
@@ -148,9 +160,9 @@ provides:
 `nix flake check` builds both Emacs variants, boots each as a daemon and
 probes init health over `emacsclient`, batch-loads the full init the way
 real startup does, runs the ERT suites for the packages defined here,
-and evaluates the Home Manager module end to end. A plain-flake consumer
-without flake-parts is held as a check too, so the README's simplest
-recipe cannot rot.
+and runs the launchers of the daemon against a stand-in for systemd. A
+caisson consumer that declares the editor inside a home-manager
+configuration is built as a check too, so the recipe above cannot rot.
 
 `nix fmt` formats.
 

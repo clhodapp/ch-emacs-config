@@ -2,15 +2,16 @@
 ;;; -*- lexical-binding: t -*-
 ;; init daemon
 ;;
-;; Managed Emacs daemon lifecycle.  The systemd template unit
-;; emacs-daemon@.service starts this Emacs with --fg-daemon=server;
-;; home-manager activation rotates the canonical "server" socket by
-;; renaming the old one to a per-instance drain socket before starting
-;; the new instance.
+;; Managed Emacs daemon lifecycle.  A transient systemd user unit,
+;; emacs-daemon-<generation>.service, runs this Emacs with
+;; --fg-daemon=server.  The launcher that starts the unit
+;; (ch-emacs-config-daemon-ensure) rotates the canonical "server" socket
+;; by renaming the old one to a per-instance drain socket before
+;; starting the new instance.
 ;;
-;; Taint: when a new generation is activated, this daemon receives
+;; Taint: when a launcher starts a new generation, this daemon receives
 ;; (ch-emacs-config-daemon-taint "server-drain-<pid>") via emacsclient,
-;; after the activation script has already renamed the socket file.
+;; after the launcher has already renamed the socket file.
 ;; After that:
 ;;  - the daemon adopts the drain socket name, so it stays reachable for
 ;;    rescue (unsaved buffers) and its exit-time socket cleanup deletes
@@ -81,9 +82,9 @@ those is a leak nothing can connect to."
     (kill-emacs)))
 
 (defun ch-emacs-config-daemon-taint (&optional drain-socket-name)
-  "Mark this daemon as superseded.  Called by the HM activation script.
-DRAIN-SOCKET-NAME is the per-instance socket file name the activation
-script renamed this daemon's socket to; adopting it keeps emacsclient
+  "Mark this daemon as superseded.  Called by the daemon launcher.
+DRAIN-SOCKET-NAME is the per-instance socket file name the launcher
+renamed this daemon's socket to; adopting it keeps emacsclient
 access working and points exit-time socket deletion at our own file
 instead of the canonical one the new daemon now owns.  Both deleters
 must be retargeted: `server-stop' (via `server-name') and the C

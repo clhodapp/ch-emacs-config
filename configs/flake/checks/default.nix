@@ -51,6 +51,7 @@ in
                 caisson
                 flake-parts
                 home-manager
+                nemacs
                 nixpkgs
                 ;
               parent = chEmacsConfig;
@@ -152,34 +153,87 @@ in
             bash ${emacsTestsSrc}/daemon-last-frame-gate.sh ${daemonInitSrc}
           touch $out
         '';
-      # Evaluate the home-manager module end to end: option types, the
-      # programs.nemacs wiring, bundle-conditional home.packages, and
-      # the daemon unit all get forced by the activation package.
-      #
-      # The module also contributes a skill and hooks to an agent
-      # module's options when one is present. That wiring is
-      # deliberately not exercised here: this flake knows nothing
-      # about the agent side, and the check that both halves compose
-      # belongs to whichever repo imports both.
-      emacsHomeManagerConfiguration = inputs.home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-        modules = [
-          chEmacsConfig.modules.homeManager.emacs
+      # The launchers of the daemon, with a stand-in for systemd that
+      # records its calls and a stand-in for emacsclient that answers
+      # `(emacs-pid)`, in a directory laid out as a Nix profile is: the
+      # launchers and the editor binaries side by side.
+      mkDaemonLaunchersCheck =
+        let
+          standIns = pkgs.symlinkJoin {
+            name = "systemd-stand-in";
+            paths = [
+              (pkgs.writeShellScriptBin "systemctl" ''
+                echo "systemctl $*" >> "$LOG"
+                cat "$STATE_FILE"
+              '')
+              (pkgs.writeShellScriptBin "systemd-run" ''
+                echo "systemd-run $*" >> "$LOG"
+              '')
+            ];
+          };
+          launchers = closure-lib.ch-emacs-config.mkDaemonLaunchers {
+            inherit pkgs;
+            systemd = standIns;
+          };
+        in
+        pkgs.runCommand "daemon-launchers"
           {
-            home.username = "tester";
-            home.homeDirectory = "/home/tester";
-            home.stateVersion = "25.05";
-            ch-emacs-config.emacs = {
-              enable = true;
-              # Forces the jinx personal-dictionary option type and
-              # the merge activation entry through evaluation.
-              jinxPersonalWords = [ "hmcheckword" ];
-            };
-            # `package` is left at its default so the check covers
-            # the overlay-backed selection.
+            nativeBuildInputs = [ pkgs.python3 ];
           }
-        ];
-      };
+          ''
+            export LOG="$TMPDIR/log"
+            export XDG_RUNTIME_DIR="$TMPDIR/run"
+            export STATE_FILE="$TMPDIR/state"
+            mkdir -p -m 700 "$XDG_RUNTIME_DIR/emacs" "$TMPDIR/profile/bin"
+            profile="$TMPDIR/profile/bin"
+            sockdir="$XDG_RUNTIME_DIR/emacs"
+
+            # The editor binaries resolve into the Nix store, as in a
+            # profile, so the generation hash is the one of `hello`.
+            ln -s ${pkgs.hello}/bin/hello "$profile/emacs"
+            for program in ${launchers}/bin/*; do
+              ln -s "$program" "$profile/$(basename "$program")"
+            done
+            gen=$(basename ${pkgs.hello} | cut -c1-12)
+
+            cat > "$profile/emacsclient" <<'EOF'
+            #!/bin/sh
+            echo "emacsclient $*" >> "$LOG"
+            case "$*" in
+            *"(emacs-pid)"*) printf 4242 ;;
+            esac
+            EOF
+            chmod +x "$profile/emacsclient"
+
+            # An unmanaged socket: a unix socket file nothing listens on.
+            mksock() { python3 -c 'import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1])' "$1"; }
+
+            # No daemon of this generation and none holding the socket:
+            # the daemon starts, and the frame opens on the socket.
+            : > "$LOG"; echo inactive > "$STATE_FILE"
+            "$profile/emacsclient-desktop-launcher" a.txt
+            grep -q "^systemd-run --user --quiet --collect --unit=emacs-daemon-$gen .*$profile/emacs --fg-daemon=server$" "$LOG"
+            grep -q "^emacsclient --socket-name=$sockdir/server --create-frame --no-wait a.txt$" "$LOG"
+
+            # The daemon of this generation runs: nothing starts.
+            : > "$LOG"; echo active > "$STATE_FILE"
+            "$profile/emacsclient-editor-launcher" b.txt
+            ! grep -q '^systemd-run' "$LOG"
+            grep -q "^emacsclient --socket-name=$sockdir/server b.txt$" "$LOG"
+
+            # Another generation holds the socket: the socket moves to a
+            # name of that daemon, the daemon is told it is replaced, and
+            # the new daemon starts.
+            mksock "$sockdir/server"
+            : > "$LOG"; echo inactive > "$STATE_FILE"
+            "$profile/emacsclient-desktop-launcher"
+            test -S "$sockdir/server-drain-4242"
+            test ! -e "$sockdir/server"
+            grep -q "^emacsclient --socket-name=$sockdir/server-drain-4242 --eval (when (fboundp 'ch-emacs-config-daemon-taint) (ch-emacs-config-daemon-taint \"server-drain-4242\"))$" "$LOG"
+            grep -q '^systemd-run .*--fg-daemon=server$' "$LOG"
+
+            touch $out
+          '';
       # An ERT suite run in batch by an editor, with extra load-path
       # entries or init steps before the test file.
       mkErtCheck =
@@ -217,12 +271,19 @@ in
           category = "unit";
         };
 
-        # The README's plain-flake recipe (no flake-parts, no
-        # framework), published as `plain-consumer-<check>`.
-        plain-consumer = {
-          top = callConsumer { path = self.outPath + "/tests/integration/plain-consumer"; };
+        # A caisson consumer that declares the editor inside a
+        # home-manager configuration, published as
+        # `caisson-consumer-<check>`.
+        caisson-consumer = {
+          top = callConsumer { path = self.outPath + "/tests/integration/caisson-consumer"; };
           category = "build";
-          description = "a flake with no framework applies the overlay and builds a home-manager configuration with the module `emacs`";
+          description = "a home-manager configuration that declares the editor as a nemacs configuration builds, and names the profile of the editor in the desktop entry, `$EDITOR`, `PATH` and fontconfig";
+        };
+
+        daemon-launchers = {
+          derivation = mkDaemonLaunchersCheck;
+          category = "unit";
+          description = "the launchers start the daemon of their generation when it is not running, leave a running one alone, and retire the daemon that holds the socket before they start a newer one";
         };
 
         emacs-init-load = {
@@ -264,11 +325,6 @@ in
           derivation = mkLastFrameGateCheck "emacs-pgtk" pkgs.ch-emacs-config.emacs-pgtk;
           category = "build";
           description = "a tainted daemon on the pgtk Emacs base package asks before its last client frame is deleted, on every close path";
-        };
-        emacs-home-manager-module = {
-          derivation = emacsHomeManagerConfiguration.activationPackage;
-          category = "build";
-          description = "a home-manager configuration with the module `emacs` and a personal dictionary builds";
         };
         # The test file activates packages to get it on the load path.
         markdown-table-fix-ert = {

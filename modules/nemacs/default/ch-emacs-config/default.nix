@@ -33,9 +33,11 @@ let
 
   # The fonts the init names. Unlike the programs above, a font cannot be
   # pinned into the init by store path: Emacs resolves a font by family
-  # through fontconfig, so the package has to be in the profile for the
-  # name to resolve. The Home Manager module installs whatever this
-  # names, which is why the init names no font family outside this table.
+  # through fontconfig, so fontconfig has to scan the fonts for the name
+  # to resolve. The editor holds the fonts this names (`fonts` below),
+  # and the configuration that puts the editor in a profile adds the
+  # fonts of the profile to fontconfig. That is why the init names no
+  # font family outside this table.
   fontsLib = emacsLib.mkFontsLib { inherit lib pkgs; };
 
   packageEntry =
@@ -68,12 +70,11 @@ in
       };
       default = { };
       description = ''
-        The fonts the init names. The Home Manager module installs each
-        one into the profile, and the init names its family, so the
-        editor renders the same on a host that has none of them
-        installed. Set one to null to leave that font to the host, in
-        which case the init stops naming its family too and Emacs falls
-        back to its default.
+        The fonts the init names. The editor holds each one, and the init
+        names its family, so the editor renders the same on a host that
+        has none of them installed. Set one to null to leave that font to
+        the host, in which case the init stops naming its family too and
+        Emacs falls back to its default.
       '';
     };
 
@@ -111,6 +112,15 @@ in
     ];
 
     earlyInit = emacsLib.earlyInitEl;
+
+    # The daemon the `daemon` bundle configures is started by programs
+    # that the editor carries, so a switch of the profile that points at
+    # the editor changes them with the editor.
+    extraPaths = lib.optional config.bundles.daemon.enable (
+      emacsLib.mkDaemonLaunchers { inherit pkgs; }
+    );
+
+    fonts = lib.filter (font: font != null) (lib.attrValues cfg.fonts);
 
     bundles = import ./bundles.nix {
       inherit lib;

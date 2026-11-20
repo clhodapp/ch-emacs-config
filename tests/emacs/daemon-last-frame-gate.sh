@@ -3,7 +3,7 @@
 #
 # Last-frame gate check for inits/daemon.el.  Boots a bare daemon with the
 # daemon init, opens real tty client frames, taints the daemon the way
-# activation does, and drives the close paths with `yes-or-no-p' stubbed:
+# the launcher does, and drives the close paths with `yes-or-no-p' stubbed:
 #
 #   1. declining a direct `delete-frame' keeps the frame
 #   2. declining the window-manager close event (`handle-delete-frame',
@@ -57,7 +57,7 @@ trap 'kill "$daemon_pid" 2>/dev/null || true' EXIT
 python3 "$here/pty-run.py" "$EMACSCLIENT" --socket-name="$sockdir/$sock" -t &
 wait_frames 2
 
-# Rotate the socket and taint, as home-manager activation does.
+# Rotate the socket and taint, as the launcher does.
 mv "$sockdir/server" "$sockdir/server-drain-test"
 sock="server-drain-test"
 ec '(ch-emacs-config-daemon-taint "server-drain-test")' >/dev/null
