@@ -17,6 +17,6 @@ nixpkgs ships a new major as `emacs<NN>-*` before it moves the unversioned `emac
 
 ## Why the checks build against the overlay
 
-The checks partition composes its package set as `caisson.nixpkgs.pkgSets.pkgs` from the registry's default selection, `emacs-packages` then `default`, and every Emacs-building check uses `pkgs.ch-emacs-config.emacs` or `.emacs-pgtk`. The proposed base and the validated base are therefore one expression; a nixpkgs bump that brings a new listed major as a final release is validated by this repo's CI, not discovered by a consumer's build. The `emacs-home-manager-module` check leaves `package` at its default for the same reason.
+The checks partition composes its package set as `caisson.nixpkgs.pkgSets.pkgs` from the registry's default selection, `emacs-packages` then `default`, and every Emacs-building check uses `pkgs.ch-emacs-config.emacs` or `.emacs-pgtk`. The proposed base and the validated base are therefore one expression; a nixpkgs bump that brings a new listed major as a final release is validated by this repo's CI, not discovered by a consumer's build. The `caisson-consumer` check leaves `package` at its default for the same reason.
 
-`tests/integration/plain-consumer` is a flake with no flake-parts and no `ch-*` inputs that applies the overlays with `import nixpkgs` and builds a home-manager configuration with `homeManagerConfiguration`. It holds the README's first recipe and the rule that exports must work for a plain flake.
+`tests/integration/caisson-consumer` is a caisson flake that lists this flake in `projects`, declares a home-manager configuration with the editor as a nemacs configuration inside it, and builds that home-manager configuration. It holds the README's recipe.
