@@ -42,7 +42,7 @@
         pkgSets = lib: lib.caisson.nixpkgs.mkConfigurations { };
       };
       # The home-manager configuration takes its module from the
-      # registry by its name, `configs/homeManager/tester`.
+      # registry by its name, `configs/home-manager/tester`.
       top = lib.caisson.flake-parts.mkTopConfiguration {
         configModule =
           { lib, ... }:
